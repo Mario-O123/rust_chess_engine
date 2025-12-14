@@ -1,28 +1,86 @@
 //Helperfunctions to print and check the Board
-
-use crate::position::{Position, Piece, Color, Piecekind};
-use crate::Mailbox120::{SQUARE64_TO_SQUARE120, SQUARE120_TO_SQUARE64, OFFBOARD};
+use crate::Mailbox120::{
+    SQUARE64_TO_SQUARE120, 
+    SQUARE120_TO_SQUARE64, 
+    OFFBOARD,
+    ROOK_DIRECTIONS,
+    BISHOP_DIRECTIONS,
+    QUEEEN_DIRECTIONS,
+    KNIGHT_DIRECTIONS,
+};
 
 
 //Convert Piece to Char
-//White Uppercase, Black Lowercase
+//White = positiv + Uppercase, Black =  negativ + Lowercase
 #[inline]
-pub fn piece_to_char(piece: &Piece) -> char {
-    match (&piece.color, &piece.kind) {
-        (Color::White, Piecekind::Pawn)   => 'P',
-        (Color::White, Piecekind::Knight) => 'N',
-        (Color::White, Piecekind::Bishop) => 'B',
-        (Color::White, Piecekind::Rook)   => 'R',
-        (Color::White, Piecekind::Queen)  => 'Q',
-        (Color::White, Piecekind::King)   => 'K',
-        (Color::Black, Piecekind::Pawn)   => 'p',
-        (Color::Black, Piecekind::Knight) => 'n',
-        (Color::Black, Piecekind::Bishop) => 'b',
-        (Color::Black, Piecekind::Rook)   => 'r',
-        (Color::Black, Piecekind::Queen)  => 'q',
-        (Color::Black, Piecekind::King)   => 'k',
+pub fn piece_to_char(piece: i8) -> char {
+    match piece {
+        1 => 'P',
+        2 => 'N',
+        3 => 'B',
+        4 => 'R',
+        5 => 'Q',
+        6 => 'K',
+        -1 => 'p',
+        -2 => 'n',
+        -3 => 'b',
+        -4 => 'r',
+        -5 => 'q',
+        -6 => 'k',
+        _ => '.',
     }
 }
+
+//extract File and Rank out ouf 120er Index
+pub fn file_rank_from_square120(square120: usize) -> (u8, u8) {
+    let adjusted = square120 - 21;
+    let file = (adjusted % 10) as u8;
+    let rank = (adjusted / 10) as u8;
+    (file, rank)
+}
+
+//Algebraic notation of square120 (example: "e4")
+#[inline]
+pub fn square120_to_string(square64: u8) -> Option<String> {
+    if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
+        return None;
+    }
+    let (file, rank) = file_rank_from_square120(square120);
+    let file_char = (b'a' + file) as char;
+    let rank_char = (b'1' + rank) as char;
+    Some(format!("{}{}", file_char, rank_char))
+}
+
+//print mailbox120 structure OFFBOARD inclusive
+pub fn print_mailbox1200_structure() {
+    println!("========== MAILBOX 120 STRUCTURE ==========");
+    println!("(## = OFFBOARD, Numbers = Valid square120)");
+    println!();
+    
+    for row in 0..12 {
+        print!("Row {:2}: ", row);
+        for col in 0..10 {
+            let square120 = row * 10 + col;
+            if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
+                print!(" ##");
+            } else {
+                print!("{:3}", square120);
+            }
+        }
+        println!();
+    }
+    
+    println!();
+    println!("Valid squares (21-98): 8x8 board");
+    println!("OFFBOARD: Rows 0-1, 10-11 and Cols 0-1, 8-9");
+    println!("===========================================");
+}
+
+
+
+
+
+
 
 //UTF-8 figures for fancy Output
 #[inline]
@@ -41,14 +99,6 @@ pub fn piece_to_char_unicode(piece: &Piece) -> char {
         (Color::Black, Piecekind::Queen)  => '♛',
         (Color::Black, Piecekind::King)   => '♚',
     }
-}
-
-//extract File and Rank out ouf 120er Index
-pub fn file_rank_from_square120(square120: usize) -> (u8, u8) {
-    let adjusted = square120 - 21;
-    let file = (adjusted % 10) as u8;
-    let rank = (adjusted / 10) as u8;
-    (file, rank)
 }
 
 //Algebraic notation of a 64 Field
