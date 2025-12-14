@@ -3,6 +3,9 @@ use once_cell::sync::Lazy;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+const BOARD64: usize = 64;
+const BOARD120: usize = 120;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
@@ -72,7 +75,7 @@ pub type Square = u8;
 // zobrist_values: [[[Squares]; Piecekinds]; Colors]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Zobrist {
-    pub zobrist_values: [[[u64; 64]; 6]; 2],
+    pub zobrist_values: [[[u64; BOARD64]; 6]; 2],
     pub zobrist_side_to_move: u64,
     pub zobrist_castling: [u64; 4],
     pub zobrist_enpassant: [u64; 8],
@@ -83,11 +86,11 @@ impl Zobrist {
     pub fn init_zobrist() -> Self {
         const SEED: u64 = 42;
         let mut rng = StdRng::seed_from_u64(SEED);
-        let mut zobrist_values = [[[0u64; 64]; 6]; 2];
+        let mut zobrist_values = [[[0u64; BOARD64]; 6]; 2];
 
         for i in 0..2 {
             for j in 0..6 {
-                for k in 0..64 {
+                for k in 0..BOARD64 {
                     zobrist_values[i][j][k] = rng.r#gen();
                 }
             }
@@ -121,7 +124,7 @@ pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(|| Zobrist::init_zobrist());
 // Black 0-0 (0b0100), Black 0-0-0 (0b1000)
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Position {
-    pub board: [Cell; 120],
+    pub board: [Cell; BOARD120],
     pub player_to_move: Color,
     pub en_passant_square: Option<Square>,
     pub castling_rights: u8,
@@ -151,8 +154,8 @@ impl Position {
         pos
     }
 
-    fn init_empty_board() -> [Cell; 120] {
-        let mut board = [Cell::Offboard; 120];
+    fn init_empty_board() -> [Cell; BOARD120] {
+        let mut board = [Cell::Offboard; BOARD120];
 
         for rank in 0..8 {
             let start = 22 + rank * 10;
@@ -164,7 +167,7 @@ impl Position {
         board
     }
 
-    fn init_board() -> [Cell; 120] {
+    fn init_board() -> [Cell; BOARD120] {
         let mut board = Self::init_empty_board();
 
         const BACK_RANK: [PieceKind; 8] = [
@@ -182,15 +185,15 @@ impl Position {
         const A2: usize = 32;
         const A7: usize = 82;
         const A8: usize = 92;
-        const STRIDE: usize = 7;
+        const STRIDE: usize = 8;
 
-        for i in A2..=A2 + STRIDE {
+        for i in A2..A2 + STRIDE {
             board[i] = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
         }
         for (i, kind) in BACK_RANK.iter().enumerate() {
             board[i + A1] = Cell::Piece(Piece::new(Color::White, *kind));
         }
-        for i in A7..=A7 + STRIDE {
+        for i in A7..A7 + STRIDE {
             board[i] = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
         }
         for (i, kind) in BACK_RANK.iter().enumerate() {
