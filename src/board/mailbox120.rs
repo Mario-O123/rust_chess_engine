@@ -1,6 +1,5 @@
 /*
     Brettdarstellung 120er Array 
-
     xxxxxxxxxx    <- offboard, Board -> 21 - 98
     xxxxxxxxxx
     xxabcdefghxx
@@ -13,7 +12,7 @@
     xxabcdefghxx
     xxxxxxxxxx
     xxxxxxxxxx
-
+    this is a test...
 */
 
 pub type Mailbox120 = [i32; 120];
@@ -22,6 +21,7 @@ pub type Mailbox64 = [i32; 64];
 pub const OFFBOARD: i32 = -1;
 pub const EMPTY: i32 = 0;
 
+pub const TEST:usize = 1;
 
 pub static MAILBOX120: [i32;120] = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -79,5 +79,4 @@ pub fn file_of(square64: usize) -> usize {
 pub fn rank_of(square64: usize) -> usize {
     square64 / 8
 }
-
 
