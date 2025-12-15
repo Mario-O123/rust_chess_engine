@@ -1,10 +1,11 @@
+use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use once_cell::sync::Lazy;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 const BOARD64: usize = 64;
-const BOARD120: usize = 120;
+const BOARD_LENGTH: usize = 8;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
@@ -20,7 +21,7 @@ impl Color {
         }
     }
 
-    pub fn idx(&self) -> u8 {
+    pub fn idx(&self) -> usize {
         match self {
             Color::White => 0,
             Color::Black => 1,
@@ -46,7 +47,7 @@ pub enum PieceKind {
 }
 
 impl PieceKind {
-    pub fn idx(self) -> u8 {
+    pub fn idx(self) -> usize {
         match self {
             PieceKind::Pawn => 0,
             PieceKind::Knight => 1,
@@ -70,7 +71,17 @@ impl Piece {
     }
 }
 
-pub type Square = u8;
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Square {
+    pub square: u8,
+}
+
+impl Square {
+    fn new(square: u8) -> Self {
+        debug_assert!(square < 120, "Only 0-119 are valid values for Square");
+        Self { square }
+    }
+}
 
 // zobrist_values: [[[Squares]; Piecekinds]; Colors]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -78,7 +89,7 @@ pub struct Zobrist {
     pub zobrist_values: [[[u64; BOARD64]; 6]; 2],
     pub zobrist_side_to_move: u64,
     pub zobrist_castling: [u64; 4],
-    pub zobrist_enpassant: [u64; 8],
+    pub zobrist_enpassant: [u64; BOARD_LENGTH],
 }
 
 impl Zobrist {
@@ -103,8 +114,8 @@ impl Zobrist {
             zobrist_castling[i] = rng.r#gen();
         }
 
-        let mut zobrist_enpassant = [0u64; 8];
-        for i in 0..8 {
+        let mut zobrist_enpassant = [0u64; BOARD_LENGTH];
+        for i in 0..BOARD_LENGTH {
             zobrist_enpassant[i] = rng.r#gen();
         }
 
@@ -122,7 +133,7 @@ pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(|| Zobrist::init_zobrist());
 
 // castling_rights uses 4 bits: White 0-0 (0b0001), White 0-0-0 (0b0010),
 // Black 0-0 (0b0100), Black 0-0-0 (0b1000)
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
     pub board: [Cell; BOARD120],
     pub player_to_move: Color,
@@ -131,6 +142,8 @@ pub struct Position {
     pub zobrist: u64,
     pub half_move_clock: u16,
     pub move_counter: u16,
+    pub king_sq: [u8; 2],
+    pub piece_counter: [u8; 12],
 }
 
 impl Position {
@@ -143,24 +156,29 @@ impl Position {
             zobrist: 0,
             half_move_clock: 0,
             move_counter: 1,
+            king_sq: [0; 2],
+            piece_counter: [0; 12],
         }
     }
 
-    fn starting_position() -> Self {
+    pub fn starting_position() -> Self {
         let mut pos = Self::empty();
         pos.board = Self::init_board();
         pos.castling_rights = 0b1111;
-        pos.zobrist = Self::compute_zobrist(&pos);
+        pos.zobrist = pos.compute_zobrist();
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+
         pos
     }
 
     fn init_empty_board() -> [Cell; BOARD120] {
         let mut board = [Cell::Offboard; BOARD120];
 
-        for rank in 0..8 {
+        for rank in 0..BOARD_LENGTH {
             let start = 22 + rank * 10;
 
-            for file in 0..8 {
+            for file in 0..BOARD_LENGTH {
                 board[start + file] = Cell::Empty;
             }
         }
@@ -181,19 +199,19 @@ impl Position {
             PieceKind::Rook,
         ];
 
+        // Please Check if these sqaures are correct
         const A1: usize = 22;
         const A2: usize = 32;
         const A7: usize = 82;
         const A8: usize = 92;
-        const STRIDE: usize = 8;
 
-        for i in A2..A2 + STRIDE {
+        for i in A2..A2 + BOARD_LENGTH {
             board[i] = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
         }
         for (i, kind) in BACK_RANK.iter().enumerate() {
             board[i + A1] = Cell::Piece(Piece::new(Color::White, *kind));
         }
-        for i in A7..A7 + STRIDE {
+        for i in A7..A7 + BOARD_LENGTH {
             board[i] = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
         }
         for (i, kind) in BACK_RANK.iter().enumerate() {
@@ -203,29 +221,73 @@ impl Position {
     }
 
     // Maybe this belongs to movegen
-    fn piece_at(&self, square: Square) -> Option<Piece> {
-        match self.board[square as usize] {
+    pub fn piece_at(&self, square: Square) -> Option<Piece> {
+        match self.board[square.square as usize] {
             Cell::Piece(piece) => Some(piece),
             Cell::Empty => None,
             Cell::Offboard => None,
         }
     }
 
-    // Maybe this belongs to movegen
-    fn king_square(&self, color: Color) -> Square {
+    // returns a vec with squares of all pieces with same color and Piecekind
+    // on the board
+    pub fn find_pieces(&self, color: Color, kind: PieceKind) -> Vec<Square> {
+        let mut pieces_found: Vec<Square> = Vec::new();
         for (i, maybe_piece) in self.board.iter().enumerate() {
             if let Cell::Piece(piece) = maybe_piece {
-                if piece.color == color && piece.kind == PieceKind::King {
-                    return i as u8;
+                if piece.color == color && piece.kind == kind {
+                    pieces_found.push(Square::new(i as u8))
                 }
             }
         }
-        unreachable!("no king of {:?} found on the board", color);
+        pieces_found
+    }
+
+    fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
+        for (i, maybe_piece) in self.board.iter().enumerate() {
+            if let Cell::Piece(piece) = maybe_piece {
+                if piece.color == color && piece.kind == kind {
+                    return Some(Square::new(i as u8));
+                }
+            }
+        }
+        None
+    }
+
+    pub fn compute_king_sq(&self) -> [u8; 2] {
+        // checks if there is exactly 1 black and 1 white king on the board
+        debug_assert!(self.find_pieces(Color::White, PieceKind::King).len() == 1);
+        debug_assert!(self.find_pieces(Color::Black, PieceKind::King).len() == 1);
+
+        let white = self
+            .find_single_piece(Color::White, PieceKind::King)
+            .expect("White king is missing");
+
+        let black = self
+            .find_single_piece(Color::Black, PieceKind::King)
+            .expect("Black king is missing");
+
+        [white.square, black.square]
+    }
+
+    pub fn compute_piece_counter(&self) -> [u8; 12] {
+        let mut all_pieces: [u8; 12] = [0; 12];
+
+        for cell in self.board.iter() {
+            if let Cell::Piece(piece) = cell {
+                if piece.color == Color::White {
+                    all_pieces[piece.kind.idx()] += 1;
+                } else if piece.color == Color::Black {
+                    all_pieces[piece.kind.idx() + 6] += 1;
+                }
+            }
+        }
+        all_pieces
     }
 
     // Maybe this belongs to movegen
     fn set_piece(&mut self, piece: Piece, square: Square) {
-        self.board[square as usize] = Cell::Piece(piece);
+        self.board[square.square as usize] = Cell::Piece(piece);
     }
 
     // computes a hash-value for every Piece on the Board, Player to Move, Castling rights
@@ -241,14 +303,14 @@ impl Position {
             }
 
             if let Cell::Piece(piece) = cell {
-                zobrist ^= ZOBRIST.zobrist_values[piece.color.idx() as usize]
-                    [piece.kind.idx() as usize][sq64 as usize];
+                zobrist ^=
+                    ZOBRIST.zobrist_values[piece.color.idx()][piece.kind.idx()][sq64 as usize];
             }
         }
 
-        // Hashvalue for player turn
+        // Hashvalue for player turn. If it´s white´s turn the hashvalue is 0.
         if self.player_to_move == Color::Black {
-            zobrist ^= ZOBRIST.zobrist_side_to_move
+            zobrist ^= ZOBRIST.zobrist_side_to_move;
         }
 
         const CASTLING_POSSIBILITIES: [u8; 4] = [
@@ -267,9 +329,9 @@ impl Position {
 
         // Hashvalue for en passant
         if let Some(ep_sq120) = self.en_passant_square {
-            let sq64 = SQUARE120_TO_SQUARE64[ep_sq120 as usize];
+            let sq64 = SQUARE120_TO_SQUARE64[ep_sq120.square as usize];
             if sq64 >= 0 {
-                let file = (sq64 as usize) % 8;
+                let file = (sq64 as usize) % BOARD_LENGTH;
                 zobrist ^= ZOBRIST.zobrist_enpassant[file];
             }
         }

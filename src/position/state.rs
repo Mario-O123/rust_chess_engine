@@ -1,5 +1,9 @@
-use crate::position::{BOARD120, Cell, Color, Piece, Position, Square};
+use crate::board::mailbox120::BOARD_SIZE as BOARD120;
+use crate::position::{Cell, Color, Piece, Position, Square};
+use crate::movegen:pseudo_legal_movegen::Move;
 
+// Order vor king_sq: WK, BK
+// Order for piece_counter: WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
 pub struct State {
     pub board: [Cell; BOARD120],
     pub player_to_move: Color,
@@ -19,7 +23,7 @@ pub struct GameState {
 // Move is not implemented yet
 pub struct Undo {
     pub mv: Move,
-    pub captuared: Piece,
+    pub captured: Option<Piece>,
     pub prev_ep_sq: Option<Square>,
     pub prev_castling: u8,
     pub prev_zobrist: u64,
