@@ -1,0 +1,169 @@
+//Attack detection for Engine
+
+use crate::position::{Position, Color, PieceKind};
+use crate::board::mailbox120::{
+    OFFBOARD, 
+    is_on_board,
+    KNIGHT_DIRECTIONS,
+    ROOK_DIRECTIONS,
+    BISHOP_DIRECTIONS,
+};
+
+
+//main function, detects if given square is attacked
+pub fn is_square_attacked(position: &Position, square120: usize, by_color: Color) -> bool {
+    attacked_by_pawn(position, square120, by_color) 
+        || attacked_by_knight(position, square120, by_color) 
+        || attacked_by_sliders(position, square120, by_color) 
+        || attacked_by_king(position, square120, by_color) 
+}
+
+//checks if a pawn of given color attacks given square
+//pawns attack diagonally
+fn attacked_by_pawn(position: &Position, square120: usize, by_color: Color) -> bool {
+    let pawn_attack_offsets = match by_color {
+        Color::White => [-9, -11],
+        Color::Black => [9, 11],
+    };
+
+    for &offset in &pawn_attack_offsets {
+        let attacker_square = (square120 as i8 + offset) as usize;
+
+        if !is_on_board(attacker_square) {
+            continue;
+        }
+        if let Some(piece) = &position.board[attacker_square] {
+            if piece.color == by_color 
+                && matches!(piece.kind, PieceKind::Pawn) {
+                    return true;
+                }
+        }
+    }
+    false
+}
+
+//checks if knight of given color attacks given square
+fn attacked_by_knight(position: &Position, square120: usize, by_color: Color) -> bool {
+    for &offset in &KNIGHT_DIRECTIONS {
+        let attacker_square = (square120 as i8 + offset) as usize;
+
+        if !is_on_board(attacker_square) {
+            continue;
+        }
+        if let Some(piece) = &position.board[attacker_square] {
+            if piece.color == by_color && matches!(piece.kind, PieceKind::Knight) {
+                return true;
+            }
+        }
+    }
+    false 
+}
+
+//checks if Slider of given color attacks given square
+fn attacked_by_sliders(position: &Position, square120: usize, by_color: Color) -> bool {
+
+    //checks ROOK
+    for &direction in &ROOK_DIRECTIONS {
+        if check_sliding_attack(position, square120, direction, &by_color, true) {
+            return true;
+        }
+    }
+
+    //check Bishop
+    for &direction in &BISHOP_DIRECTIONS {
+        if check_sliding_attack(position, square120, direction, &by_color, false) {
+            return true;
+        }
+    }
+
+    false
+}
+
+//helperfunction 
+fn check_sliding_attack(
+    position: &Position,
+    square120: usize,
+    direction: i8,
+    by_color: &Color,
+    is_rook_direction: Bool, // true -> ROOK/QUEEN, false -> BISHOP/QUEEN
+) -> bool {
+    let mut current = (square120 as i8 + direction) as usize;
+
+    loop{ //while(true) till break or return
+
+        if !is_on_board(current) {
+            break;
+        }
+
+        if let Some(piece) = &position.board[current] {
+            //get out wrong colors 
+            if piece.color != by_color {
+                return false;
+            }
+
+            //right color but which piecekind
+            return match (is_rook_direction, &piece.kind) {
+                (true, PieceKind::ROOK) => true,
+                (true, PieceKind::QUEEN) => true,
+                (false, PieceKind::BISHOP) => true,
+                (false, PieceKind::QUEEN) => true,
+                _ => false, 
+            };
+        }
+
+        //next
+        current = (current as i8 + direction) as usize;
+    }
+    false
+}
+
+
+fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> bool {
+    const KING_DIRECTIONS: [i8; 8] = [1, -1, 9, -9, 10, -10, 11, -11];
+
+    for &offset in KING_DIRECTIONS {
+        let attacker_square = (square120 as i8 + offset) as usize;
+
+        if !is_on_board(attacker_square) {
+            continue;
+        }
+
+        if let Some(piece) = &position.board[attacker_square] {
+            if piece.color == by_color && matches!(piece.kind, PieceKind::KING) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+pub fn is_in_check(position: &Position, color: Color) -> bool {
+    let king_square = match find_king(position, &color) {
+        Some(square) => square,
+        None => {
+            erprintln!("ERROR: König nicht gefunden für {}", color);
+            return false;
+        }
+    };
+    let enemy_color = color.opposite();
+    is_square_attacked(position, king_square, enemy_color)
+}
+
+pub fn find_king(position: &Position, color: Color) -> usize {
+    for square120 in 21..=98 {
+        if let Some(piece) = &position.board[square120] {
+            if matches!(piece.color, color) && matches!(piece.kind, PieceKind::King) {
+                return square120;
+            }
+        }
+    }
+    panic!("No King foound!")
+}
+
+//gibt square120 indizes der angreifer wieder
+pub fn attackers_of_square() -> Vec<usize>{
+    
+}
+
+
+

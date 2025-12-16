@@ -1,0 +1,1 @@
+//Knight/Bishop/Queen/King
