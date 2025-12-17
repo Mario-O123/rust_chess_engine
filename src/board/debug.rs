@@ -7,60 +7,18 @@ use crate::mailbox120::{
     BISHOP_DIRECTIONS,
     QUEEN_DIRECTIONS,
     KNIGHT_DIRECTIONS,
+    BOARD_SIZE,
     square120_from_file_rank,
+    is_on_board,
 };
 
+use crate::conversion::{
+    file_rank_from_square120,
+    piece_to_char_unicode,
+    piece_to_char,
+    square120_to_string,
+};
 
-//Convert Piece to Char
-//White = positiv + Uppercase, Black =  negativ + Lowercase
-#[inline]
-pub fn piece_to_char(piece: i8) -> char {
-    match piece {
-        1 => 'P',
-        2 => 'N',
-        3 => 'B',
-        4 => 'R',
-        5 => 'Q',
-        6 => 'K',
-        -1 => 'p',
-        -2 => 'n',
-        -3 => 'b',
-        -4 => 'r',
-        -5 => 'q',
-        -6 => 'k',
-        _ => '.',
-    }
-}
-
-//piece to char unicode
-//White -> outlines, Black -> full
-#[inline]
-pub fn piece_to_char_unicode(p: i8) -> char {
-    match p {
-        1  => '♙',  
-        2  => '♘',  
-        3  => '♗',  
-        4  => '♖',  
-        5  => '♕',  
-        6  => '♔',  
-        -1 => '♟',  
-        -2 => '♞',  
-        -3 => '♝',  
-        -4 => '♜', 
-        -5 => '♛', 
-        -6 => '♚', 
-        _  => '·',  
-    }
-}
-
-//extract File and Rank out ouf 120er Index
-#[inline]
-pub fn file_rank_from_square120(square120: usize) -> (u8, u8) {
-    let adjusted = square120 - 21;
-    let file = (adjusted % 10) as u8;
-    let rank = (adjusted / 10) as u8;
-    (file, rank)
-}
 
 // prints file_rank table
 pub fn print_file_rank_table() {
@@ -72,17 +30,6 @@ pub fn print_file_rank_table() {
     }
 }
 
-//Algebraic notation of square120 (example: "e4")
-#[inline]
-pub fn square120_to_string(square120: usize) -> Option<String> {
-    if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
-        return None;
-    }
-    let (file, rank) = file_rank_from_square120(square120);
-    let file_char = (b'a' + file) as char;
-    let rank_char = (b'1' + rank) as char;
-    Some(format!("{}{}", file_char, rank_char))
-}
 
 //print mailbox120 structure OFFBOARD inclusive
 pub fn print_mailbox120_structure() {
@@ -162,20 +109,22 @@ pub fn debug_check_mapping_square64_square120() {
 }
 
 
-
 // gives information about a square120
 pub fn debug_print_square120_info(square120: usize) {
-    println!("========== SQUARE120 INFO ==========");
-    println!("square120: {}", square120);
-    
-    if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
+    if (square120 >= BOARD_SIZE) {
+        println!("Status: >= BOARD_SIZE");
+        return
+    } else if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
         println!("Status: OFFBOARD");
+        return
     } else {
+        println!("========== SQUARE120 INFO ==========");
+        println!("square120: {}", square120);
         let square64 = SQUARE120_TO_SQUARE64[square120] as u8;
         let (file, rank) = file_rank_from_square120(square120);
         let file_char = (b'a' + file) as char;
         let rank_char = (b'1' + rank) as char;
-        
+
         println!("Status: Valid");
         println!("square64: {}", square64);
         println!("Algebraic: {}{}", file_char, rank_char);
@@ -188,6 +137,10 @@ pub fn debug_print_square120_info(square120: usize) {
 
 // gives all possible moves of a square120 with an offset array
 pub fn debug_print_offset_moves(square120: usize, offsets: &[i8], piece_name: &str) {
+    if (square120 >= BOARD_SIZE) {
+        println!("ERROR: square120 >= BOARDSIZE");
+        return
+    }
     println!("========== OFFSET MOVES DEBUG ==========");
     println!("Piece: {}", piece_name);
     println!("From square120: {}", square120);
@@ -206,13 +159,13 @@ pub fn debug_print_offset_moves(square120: usize, offsets: &[i8], piece_name: &s
     
     println!("Possible moves with offsets:");
     for (i, &offset) in offsets.iter().enumerate() {
-        let target = (square120 as i8 + offset) as usize;
+        let target = (square120 as isize + offset as isize);
         
-        if target >= 120 {
+        if !(0..BOARD_SIZE as isize).contains(&target) {
             println!("  [{}] offset {:3} -> OUT OF BOUNDS", i, offset);
             continue;
         }
-        
+        let target = target as usize;
         if SQUARE120_TO_SQUARE64[target] == OFFBOARD {
             println!("  [{}] offset {:3} -> square120={:3} OFFBOARD", i, offset, target);
         } else {
