@@ -4,13 +4,14 @@
 // % then less problems if square120 + direction is negative for example 
 // % not possible to cast it to usize. 
 
-use crate::position::{Position, Color, PieceKind};
+use crate::position::{Position, Color, PieceKind, Cell};
 use crate::board::mailbox120::{
     is_on_board,
     KNIGHT_DIRECTIONS,
     ROOK_DIRECTIONS,
     BISHOP_DIRECTIONS,
 };
+
 
 
 //main function, detects if given square is attacked
@@ -37,7 +38,7 @@ fn attacked_by_pawn(position: &Position, square120: usize, by_color: Color) -> b
         if !is_on_board(attacker_square) {
             continue;
         }
-        if let Some(piece) = &position.board[attacker_square] {
+        if let Cell::Piece(piece) = &position.board[attacker_square] {
             if piece.color == by_color 
                 && matches!(piece.kind, PieceKind::Pawn) {
                     return true;
@@ -58,7 +59,7 @@ fn attacked_by_knight(position: &Position, square120: usize, by_color: Color) ->
         if !is_on_board(attacker_square) {
             continue;
         }
-        if let Some(piece) = &position.board[attacker_square] {
+        if let Cell::Piece(piece)  = &position.board[attacker_square] {
             if piece.color == by_color && matches!(piece.kind, PieceKind::Knight) {
                 return true;
             }
@@ -104,7 +105,7 @@ fn check_sliding_attack(
             break;
         }
 
-        if let Some(piece) = &position.board[current] {
+        if let Cell::Piece(piece) = &position.board[current] {
             //get out wrong colors 
             if piece.color != *by_color {
                 return false;
@@ -126,7 +127,6 @@ fn check_sliding_attack(
     false
 }
 
-
 fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> bool {
     const KING_DIRECTIONS: [i8; 8] = [1, -1, 9, -9, 10, -10, 11, -11];
 
@@ -140,7 +140,7 @@ fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> b
             continue;
         }
 
-        if let Some(piece) = &position.board[attacker_square] {
+        if let Cell::Piece(piece) = &position.board[attacker_square] {
             if piece.color == by_color && matches!(piece.kind, PieceKind::King) {
                 return true;
             }
@@ -161,12 +161,12 @@ pub fn is_in_check(position: &Position, color: Color) -> bool {
     is_square_attacked(position, king_square, enemy_color)
 }
 
-fn find_king(position: &Position, color: Color) -> Option<usize> {
+pub fn find_king(position: &Position, color: Color) -> Option<usize> {
     for square120 in 21..=98 {
         if !is_on_board(square120) {
             continue;
         }
-        if let Some(piece) = &position.board[square120] {
+        if let Cell::Piece(piece) = &position.board[square120] {
             if piece.color == color && matches!(piece.kind, PieceKind::King) {
                 return Some(square120);
             }
@@ -190,7 +190,7 @@ pub fn attackers_of_square(position: &Position, square120:usize, by_color: Color
         if attacker_square < 0 { continue; }
         let attacker_square = attacker_square as usize;
         if is_on_board(attacker_square) {
-            if let Some(piece) = &position.board[attacker_square] {
+            if let Cell::Piece(piece) = &position.board[attacker_square] {
                 if piece.color == by_color && matches!(piece.kind, PieceKind::Pawn) {
                     attackers.push(attacker_square);
                 }
@@ -206,7 +206,7 @@ pub fn attackers_of_square(position: &Position, square120:usize, by_color: Color
         let attacker_square = attacker_square as usize;
 
         if is_on_board(attacker_square) {
-            if let Some(piece) = &position.board[attacker_square] {
+            if let Cell::Piece(piece) = &position.board[attacker_square] {
                 if piece.color == by_color && matches!(piece.kind, PieceKind::Knight) {
                     attackers.push(attacker_square);
                 }
@@ -238,7 +238,7 @@ pub fn attackers_of_square(position: &Position, square120:usize, by_color: Color
         let attacker_square = attacker_square as usize;
 
         if is_on_board(attacker_square) {
-            if let Some(piece) = &position.board[attacker_square] {
+            if let Cell::Piece(piece) = &position.board[attacker_square] {
                 if piece.color == by_color && matches!(piece.kind, PieceKind::King) {
                     attackers.push(attacker_square)
                 }
@@ -266,7 +266,7 @@ fn find_sliding_attacker(
             break;
         }
 
-        if let Some(piece) = &position.board[current] {
+        if let Cell::Piece(piece) = &position.board[current] {
             //get out wrong colors 
             if piece.color != *by_color {
                 return None
