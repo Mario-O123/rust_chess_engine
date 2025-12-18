@@ -11,14 +11,13 @@ pub const KNIGHT_DIRECTIONS: [i8; 8] = [8, -8, 12, -12, 19, -19, 21, -21];
 
 //used in the static mapping as helper
 //important to always call with arguments 0..8
-pub const fn square120_from_file_rank(file: usize, rank: usize) -> usize{
+pub const fn square120_from_file_rank(file: usize, rank: usize) -> usize {
     21 + file + (rank * 10)
 }
 
 //this will be used later and get called many times in movegen, so inline
 pub fn is_on_board(square120: usize) -> bool {
-    square120 < BOARD_SIZE &&
-    SQUARE120_TO_SQUARE64[square120] != OFFBOARD
+    square120 < BOARD_SIZE && SQUARE120_TO_SQUARE64[square120] != OFFBOARD
 }
 
 //the actual mappings for reading from and into the internal engine:
@@ -73,5 +72,3 @@ mod tests {
         }
     }
 }
-
-
