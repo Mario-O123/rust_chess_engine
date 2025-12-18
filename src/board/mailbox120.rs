@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 pub const BOARD_SIZE: usize = 120;
 pub const OFFBOARD: i8 = -1;
 
@@ -21,7 +23,7 @@ pub fn is_on_board(square120: usize) -> bool {
 
 //the actual mappings for reading from and into the internal engine:
 //here, we need i8 for the offboard markings
-pub static SQUARE120_TO_SQUARE64: [i8; BOARD_SIZE] = {
+pub static SQUARE120_TO_SQUARE64: LazyLock<[i8; BOARD_SIZE]> = LazyLock::new(|| {
     let mut lookup = [OFFBOARD; BOARD_SIZE];
     let mut square64: usize = 0;
 
@@ -34,9 +36,9 @@ pub static SQUARE120_TO_SQUARE64: [i8; BOARD_SIZE] = {
     }
 
     lookup
-};
+});
 
-pub static SQUARE64_TO_SQUARE120: [usize; 64] = {
+pub static SQUARE64_TO_SQUARE120: LazyLock<[usize; 64]> = LazyLock::new(|| {
     let mut lookup = [0usize; 64];
     let mut square64: usize = 0;
 
@@ -48,6 +50,28 @@ pub static SQUARE64_TO_SQUARE120: [usize; 64] = {
         }
     }
     lookup
-};
+});
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_on_board_is_safe() {
+        assert!(!is_on_board(0));
+        assert!(!is_on_board(119));
+        assert!(is_on_board(square120_from_file_rank(0, 0)));
+        assert!(is_on_board(square120_from_file_rank(7, 7)));
+    }
+
+    #[test]
+    fn lookup_square64_to_square120_and_back_works() {
+        for square64 in 0..64usize {
+            let square120 = SQUARE64_TO_SQUARE120[square64];
+            assert!(is_on_board(square120));
+            assert_eq!(SQUARE120_TO_SQUARE64[square120], square64 as i8);
+        }
+    }
+}
 
 
