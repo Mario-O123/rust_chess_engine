@@ -150,7 +150,7 @@ fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> b
 }
 
 pub fn is_in_check(position: &Position, color: Color) -> bool {
-    let king_square = match find_king(position, &color) {
+    let king_square = match find_king(position, color) {
         Some(square) => square,
         None => {
             eprintln!("ERROR: König nicht gefunden für {:?}", color);
@@ -186,7 +186,9 @@ pub fn attackers_of_square(position: &Position, square120:usize, by_color: Color
     };
 
     for &offset in &pawn_attack_offsets {
-        let attacker_square = (square120 as i32 + offset as i32) as usize;
+        let attacker_square = square120 as i32 + offset as i32;
+        if attacker_square < 0 { continue; }
+        let attacker_square = attacker_square as usize;
         if is_on_board(attacker_square) {
             if let Some(piece) = &position.board[attacker_square] {
                 if piece.color == by_color && matches!(piece.kind, PieceKind::Pawn) {
