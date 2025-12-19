@@ -72,14 +72,20 @@ impl Piece {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Square {
-    pub square: u8,
-}
+pub struct Square(u8);
 
 impl Square {
     fn new(square: u8) -> Self {
         debug_assert!(square < 120, "Only 0-119 are valid values for Square");
-        Self { square }
+        Self(square)
+    }
+
+    pub const fn get(self) -> u8 {
+        self.0
+    }
+
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
     }
 }
 
@@ -174,9 +180,10 @@ impl Position {
 
     fn init_empty_board() -> [Cell; BOARD120] {
         let mut board = [Cell::Offboard; BOARD120];
+        const A1: usize = 21;
 
         for rank in 0..BOARD_LENGTH {
-            let start = 22 + rank * 10;
+            let start = A1 + rank * 10;
 
             for file in 0..BOARD_LENGTH {
                 board[start + file] = Cell::Empty;
@@ -199,11 +206,10 @@ impl Position {
             PieceKind::Rook,
         ];
 
-        // Please Check if these sqaures are correct
-        const A1: usize = 22;
-        const A2: usize = 32;
-        const A7: usize = 82;
-        const A8: usize = 92;
+        const A1: usize = 21;
+        const A2: usize = 31;
+        const A7: usize = 81;
+        const A8: usize = 91;
 
         for i in A2..A2 + BOARD_LENGTH {
             board[i] = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
@@ -222,7 +228,7 @@ impl Position {
 
     // Maybe this belongs to movegen
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        match self.board[square.square as usize] {
+        match self.board[square.as_usize()] {
             Cell::Piece(piece) => Some(piece),
             Cell::Empty => None,
             Cell::Offboard => None,
@@ -243,7 +249,7 @@ impl Position {
         pieces_found
     }
 
-    fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
+    pub fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
         for (i, maybe_piece) in self.board.iter().enumerate() {
             if let Cell::Piece(piece) = maybe_piece {
                 if piece.color == color && piece.kind == kind {
@@ -267,7 +273,7 @@ impl Position {
             .find_single_piece(Color::Black, PieceKind::King)
             .expect("Black king is missing");
 
-        [white.square, black.square]
+        [white.get(), black.get()]
     }
 
     pub fn compute_piece_counter(&self) -> [u8; 12] {
@@ -283,11 +289,6 @@ impl Position {
             }
         }
         all_pieces
-    }
-
-    // Maybe this belongs to movegen
-    fn set_piece(&mut self, piece: Piece, square: Square) {
-        self.board[square.square as usize] = Cell::Piece(piece);
     }
 
     // computes a hash-value for every Piece on the Board, Player to Move, Castling rights
@@ -329,7 +330,7 @@ impl Position {
 
         // Hashvalue for en passant
         if let Some(ep_sq120) = self.en_passant_square {
-            let sq64 = SQUARE120_TO_SQUARE64[ep_sq120.square as usize];
+            let sq64 = SQUARE120_TO_SQUARE64[ep_sq120.as_usize()];
             if sq64 >= 0 {
                 let file = (sq64 as usize) % BOARD_LENGTH;
                 zobrist ^= ZOBRIST.zobrist_enpassant[file];
