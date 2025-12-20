@@ -75,7 +75,7 @@ impl Piece {
 pub struct Square(u8);
 
 impl Square {
-    fn new(square: u8) -> Self {
+    pub fn new(square: u8) -> Self {
         debug_assert!(square < 120, "Only 0-119 are valid values for Square");
         Self(square)
     }
@@ -153,7 +153,7 @@ pub struct Position {
 }
 
 impl Position {
-    fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             board: Self::init_empty_board(),
             player_to_move: Color::White,
