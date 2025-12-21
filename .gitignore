@@ -1,0 +1,15 @@
+# Build artifacts
+target/
+
+# IDEs / Editoren
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-spezifisch
+.DS_Store
+Thumbs.db
+
+# Rustup / Toolchain
+rustfmt.toml.bk
