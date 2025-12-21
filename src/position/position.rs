@@ -211,7 +211,7 @@ impl Position {
         const A7: usize = 81;
         const A8: usize = 91;
 
-        for Square in board[A2..A2 + BOARD_LENGTH].iter_mut() {
+        for square in board[A2..A2 + BOARD_LENGTH].iter_mut() {
             *square = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
         }
 
@@ -219,8 +219,8 @@ impl Position {
             board[i + A1] = Cell::Piece(Piece::new(Color::White, *kind));
         }
 
-        for Square in board[A7..A7 + BOARD_LENGTH].iter_mut() {
-            *Square = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
+        for square in board[A7..A7 + BOARD_LENGTH].iter_mut() {
+            *square = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
         }
 
         for (i, kind) in BACK_RANK.iter().enumerate() {
