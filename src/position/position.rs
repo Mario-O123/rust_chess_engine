@@ -1,4 +1,3 @@
-#[warn(unused_imports)]
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use once_cell::sync::Lazy;

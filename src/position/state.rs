@@ -1,6 +1,6 @@
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
+use crate::movegen::pseudo_legal_movegen::Move;
 use crate::position::{Cell, Color, Piece, Position, Square};
-use crate::movegen:pseudo_legal_movegen::Move;
 
 // Order vor king_sq: WK, BK
 // Order for piece_counter: WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
