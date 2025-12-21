@@ -1,12 +1,13 @@
 //Pin detection and X-Ray Attacks
 //pinned if piece cant move without having own king in check
 
-use crate::position::{Position, Color, PieceKind};
+use crate::position::{Position, Color, PieceKind, Cell};
 use crate::board::mailbox120::{
     is_on_board,
     ROOK_DIRECTIONS,
     BISHOP_DIRECTIONS,
 };
+
 
 //Pin representation
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -123,6 +124,7 @@ fn normalize_direction(dir: i32) -> i8 {
     return 0;
 }
 
+//checks if theres a pin i specific direction
 fn check_pin_in_direction(
     position: &Position,
     king_square: usize,
@@ -131,15 +133,91 @@ fn check_pin_in_direction(
     enemy_color: Color,
     is_rook_direction: bool, // true = Rook/Queen, false = Bishop/Queen
 ) -> Option<Pin> {
+    let mut current = (kin_square as i32 + direction as i32) as usize;
+    let mut potenial_pinned: Option<usize> = None;
 
+    loop {
+
+        if !is_on_board(current) {
+            break;
+        }
+
+        if let Cell::Piece(piece) = &position.board[current] {
+            
+            //own piece
+            if piece.color == friendly_color {
+                if potenial_pinned.is_some() {
+                    return None;
+                }
+                potenial_pinned = Cell::Piece(current);
+                current = (current as i32 + direction as i32) as usize;
+                continue;
+            }
+
+            //opp piece
+            if piece.color == enemy_color {
+                //is it a slider?
+                let can_pin = match (is_rook_direction, &piece.kind) {
+                    (true, PieceKind::Rook) => true,
+                        (true, PieceKind::Queen) => true,
+                        (false, PieceKind::Bishop) => true,
+                        (false, PieceKind::Queen) => true,
+                        _ => false,
+                };
+
+                if can_pin && potenial_pinned.is_some() {
+                    return Some(Pin {
+                        pinnend_square: potenial_pinned.unwrap(),
+                        pinner_square: current,
+                        king_square,
+                        direction,
+                    });
+                }
+                return None;
+            }
+        }
+    current = (current as i32 + direction as i32) as usize;
+    }
+    None
 }
 
+//xray attack = find figure that would put king to check 
+//if they werent blocked by other piece
+// KING----PAWN----queen -> queen would be a xray attacker
 pub fn find_xray_attackers(
     position: &Position,
     target_square: usize,
     by_color: Color,
 ) -> Vec<usize> {
+    let mut xray_attackers = Vec::new();
 
+    //check ROOK
+    for &direction in &ROOK_DIRECTIONS {
+        if let Some(attacker) = find_xray_in_direction(
+            position,
+            target_square,
+            direction,
+            by_color,
+            true,
+        ) {
+            xray_attackers.push(attacker);
+        }
+    }
+
+    //check BISHOP
+    for &direction in &BISHOP_DIRECTIONS {
+        if let Some(attacker) = find_xray_in_direction(
+            position,
+            target_square,
+            direction,
+            by_color,
+            false,
+        ) {
+            xray_attackers.push(attacker);
+        }
+    }
+
+    xray_attackers
 }
 
 fn find_xray_in_direction(
@@ -149,7 +227,43 @@ fn find_xray_in_direction(
     by_color: Color,
     is_rook_direction: bool,
 ) -> Option<usize> {
+    let mut current = (target_square as i32 + direction as i32) as usize;
+    let mut blocker_found = false;
+    
+    loop {
+        if !is_on_board(current) {
+            break;
+        }
 
+        if let Some(piece) = &position.board[current] {
+            
+            if !blocker_found {
+                //first piece could be blocker
+                blocker_found = true;
+                current = (current as i32 + direction as i32) as usize;
+                continue;
+            } else {
+                //second piece could be blocker 
+                if piece.color == by_color {
+                    let can_xray = match (is_rook_direction, &piece.kind) {
+                        (true, PieceKind::Rook) => true,
+                        (true, PieceKind::Queen) => true,
+                        (false, PieceKind::Bishop) => true,
+                        (false, PieceKind::Queen) => true,
+                        _ => false,
+                    };
+
+                    if can_xray {
+                        return Some(current);
+                    }
+                }
+                return None;
+
+            }
+        }
+        current = (current as i32 + direction as i32) as usize;
+    }
+    None
 }
 
 
