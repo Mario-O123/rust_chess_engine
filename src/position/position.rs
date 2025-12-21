@@ -297,7 +297,7 @@ impl Position {
 
     // computes a hash-value for every Piece on the Board, Player to Move, Castling rights
     // and en-passant-row. So every Boardstate has a unique hash-value
-    fn compute_zobrist(&self) -> u64 {
+    pub fn compute_zobrist(&self) -> u64 {
         let mut zobrist: u64 = 0;
 
         // Hashvalue for every Piece on the Board
