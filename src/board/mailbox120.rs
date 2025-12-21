@@ -1,82 +1,74 @@
-/*
-    Brettdarstellung 120er Array 
-    xxxxxxxxxx    <- offboard, Board -> 21 - 98
-    xxxxxxxxxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxabcdefghxx
-    xxxxxxxxxx
-    xxxxxxxxxx
-    this is a test...
-*/
+use std::sync::LazyLock;
 
-pub type Mailbox120 = [i32; 120];
-pub type Mailbox64 = [i32; 64];
+pub const BOARD_SIZE: usize = 120;
+pub const OFFBOARD: i8 = -1;
 
-pub const OFFBOARD: i32 = -1;
-pub const EMPTY: i32 = 0;
+//Directions/Movement offsets, handle King and Pawn separately
+pub const ROOK_DIRECTIONS: [i8; 4] = [1, -1, 10, -10];
+pub const BISHOP_DIRECTIONS: [i8; 4] = [9, -9, 11, -11];
+pub const QUEEN_DIRECTIONS: [i8; 8] = [1, -1, 9, -9, 10, -10, 11, -11];
+pub const KNIGHT_DIRECTIONS: [i8; 8] = [8, -8, 12, -12, 19, -19, 21, -21];
 
-pub const TEST:usize = 1;
-
-pub static MAILBOX120: [i32;120] = [
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, -1, -1,
-    -1, -1, 8, 9, 10, 11, 12, 13, 14, 15, -1, -1,
-    -1, -1, 16, 17, 18, 19, 20, 21, 22, 23, -1, -1
-    -1, -1, 24, 25, 26, 27, 28, 29, 30, 31, -1, -1,
-    -1, -1, 32, 33, 34, 35, 36, 37, 38, 39, -1, -1,
-    -1, -1, 40, 41, 42, 43, 44, 45, 46, 47, -1, -1,
-    -1, -1, 48, 49, 50, 51, 52, 53, 54, 55, -1, -1,
-    -1, -1, 56, 57, 58, 59, 60, 61, 62, 63, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-];
-
-pub static MAILBOX64: [i32; 64] = [
-    21, 22, 23, 24, 25, 26, 27, 28, 
-    29, 30, 31, 32, 33, 34, 35, 36, 
-    37, 38, 39, 40, 41, 42, 43, 44, 
-    45, 46, 47, 48, 49, 50, 51, 52, 
-    53, 54, 55, 56, 57, 58, 59, 60, 
-    61, 62, 63, 64, 65, 66, 67, 67, 
-    68, 69, 70, 71, 72, 73, 74, 75, 
-    76, 77, 78, 79, 80, 81, 82, 83, 
-];
-
-
-//wandelt eine 64er Feld in ein 120er Feld um 
-pub fn to_mailbox120(square64: usize) -> Option<usize> {
-    MAILBOX64[square64] as usize
+//used in the static mapping as helper
+//important to always call with arguments 0..8
+pub const fn square120_from_file_rank(file: usize, rank: usize) -> usize {
+    21 + file + (rank * 10)
 }
 
-//wandelt eine 120er Feld in ein 64er Feld um 
-//gibt None() zurück falls OFFBOARD
-pub fn to_square64(square120:usize) -> Option<usize> {
-    let square = MAILBOX120[square120];
-    if square == OFFBOARD {
-        None
-    } else {
-        Some(square as usize)
+//this will be used later and get called many times in movegen, so inline
+pub fn is_on_board(square120: usize) -> bool {
+    square120 < BOARD_SIZE && SQUARE120_TO_SQUARE64[square120] != OFFBOARD
+}
+
+//the actual mappings for reading from and into the internal engine:
+//here, we need i8 for the offboard markings
+pub static SQUARE120_TO_SQUARE64: LazyLock<[i8; BOARD_SIZE]> = LazyLock::new(|| {
+    let mut lookup = [OFFBOARD; BOARD_SIZE];
+    let mut square64: usize = 0;
+
+    for rank in 0..8 {
+        for file in 0..8 {
+            let square120: usize = square120_from_file_rank(file, rank);
+            lookup[square120] = square64 as i8;
+            square64 += 1;
+        }
+    }
+
+    lookup
+});
+
+pub static SQUARE64_TO_SQUARE120: LazyLock<[usize; 64]> = LazyLock::new(|| {
+    let mut lookup = [0usize; 64];
+    let mut square64: usize = 0;
+
+    for rank in 0..8 {
+        for file in 0..8 {
+            let square120 = square120_from_file_rank(file, rank);
+            lookup[square64] = square120;
+            square64 += 1;
+        }
+    }
+    lookup
+});
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_on_board_is_safe() {
+        assert!(!is_on_board(0));
+        assert!(!is_on_board(119));
+        assert!(is_on_board(square120_from_file_rank(0, 0)));
+        assert!(is_on_board(square120_from_file_rank(7, 7)));
+    }
+
+    #[test]
+    fn lookup_square64_to_square120_and_back_works() {
+        for square64 in 0..64usize {
+            let square120 = SQUARE64_TO_SQUARE120[square64];
+            assert!(is_on_board(square120));
+            assert_eq!(SQUARE120_TO_SQUARE64[square120], square64 as i8);
+        }
     }
 }
-
-//Prüft ob ein 120er außerhalb des Boards ist 
-pub fn is_offboard(square120:usize) -> bool {
-    MAILBOX120[square120] == OFFBOARD
-}
-
-//File und rank einer 64er Poition -
-pub fn file_of(square64: usize) -> usize {
-    square64 % 8
-}
-
-pub fn rank_of(square64: usize) -> usize {
-    square64 / 8
-}
-
