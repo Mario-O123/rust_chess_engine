@@ -1,5 +1,5 @@
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
-use crate::movegen::pseudo_legal_movegen::Move;
+//use crate::movegen::pseudo_legal_movegen::Move; -unused as of now
 use crate::position::{Cell, Color, Piece, Position, Square};
 
 // Order vor king_sq: WK, BK
@@ -22,7 +22,7 @@ pub struct GameState {
 
 // Move is not implemented yet
 pub struct Undo {
-    pub mv: Move,
+//    pub mv: Move, -unused as of now
     pub captured: Option<Piece>,
     pub prev_ep_sq: Option<Square>,
     pub prev_castling: u8,
