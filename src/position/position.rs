@@ -1,3 +1,4 @@
+#[warn(unused_imports)]
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use once_cell::sync::Lazy;
@@ -105,10 +106,10 @@ impl Zobrist {
         let mut rng = StdRng::seed_from_u64(SEED);
         let mut zobrist_values = [[[0u64; BOARD64]; 6]; 2];
 
-        for i in 0..2 {
-            for j in 0..6 {
-                for k in 0..BOARD64 {
-                    zobrist_values[i][j][k] = rng.r#gen();
+        for colors in zobrist_values.iter_mut() {
+            for piecekinds in colors.iter_mut() {
+                for square in piecekinds.iter_mut() {
+                    *square = rng.r#gen();
                 }
             }
         }
@@ -116,13 +117,13 @@ impl Zobrist {
         let zobrist_side_to_move = rng.r#gen();
 
         let mut zobrist_castling = [0u64; 4];
-        for i in 0..4 {
-            zobrist_castling[i] = rng.r#gen();
+        for castling_possibility in zobrist_castling.iter_mut() {
+            *castling_possibility = rng.r#gen();
         }
 
         let mut zobrist_enpassant = [0u64; BOARD_LENGTH];
-        for i in 0..BOARD_LENGTH {
-            zobrist_enpassant[i] = rng.r#gen();
+        for ep_possibility in zobrist_enpassant.iter_mut() {
+            *ep_possibility = rng.r#gen();
         }
 
         Self {
@@ -135,7 +136,7 @@ impl Zobrist {
 }
 
 // Blocks Memory for Zobrist. init_zobrist is called, when needed
-pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(|| Zobrist::init_zobrist());
+pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(Zobrist::init_zobrist);
 
 // castling_rights uses 4 bits: White 0-0 (0b0001), White 0-0-0 (0b0010),
 // Black 0-0 (0b0100), Black 0-0-0 (0b1000)
@@ -211,22 +212,24 @@ impl Position {
         const A7: usize = 81;
         const A8: usize = 91;
 
-        for i in A2..A2 + BOARD_LENGTH {
-            board[i] = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
+        for Square in board[A2..A2 + BOARD_LENGTH].iter_mut() {
+            *square = Cell::Piece(Piece::new(Color::White, PieceKind::Pawn));
         }
+
         for (i, kind) in BACK_RANK.iter().enumerate() {
             board[i + A1] = Cell::Piece(Piece::new(Color::White, *kind));
         }
-        for i in A7..A7 + BOARD_LENGTH {
-            board[i] = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
+
+        for Square in board[A7..A7 + BOARD_LENGTH].iter_mut() {
+            *Square = Cell::Piece(Piece::new(Color::Black, PieceKind::Pawn));
         }
+
         for (i, kind) in BACK_RANK.iter().enumerate() {
             board[i + A8] = Cell::Piece(Piece::new(Color::Black, *kind));
         }
         board
     }
 
-    // Maybe this belongs to movegen
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
         match self.board[square.as_usize()] {
             Cell::Piece(piece) => Some(piece),
@@ -240,10 +243,11 @@ impl Position {
     pub fn find_pieces(&self, color: Color, kind: PieceKind) -> Vec<Square> {
         let mut pieces_found: Vec<Square> = Vec::new();
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece {
-                if piece.color == color && piece.kind == kind {
-                    pieces_found.push(Square::new(i as u8))
-                }
+            if let Cell::Piece(piece) = maybe_piece
+                && piece.color == color
+                && piece.kind == kind
+            {
+                pieces_found.push(Square::new(i as u8))
             }
         }
         pieces_found
@@ -251,10 +255,11 @@ impl Position {
 
     pub fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece {
-                if piece.color == color && piece.kind == kind {
-                    return Some(Square::new(i as u8));
-                }
+            if let Cell::Piece(piece) = maybe_piece
+                && piece.color == color
+                && piece.kind == kind
+            {
+                return Some(Square::new(i as u8));
             }
         }
         None
