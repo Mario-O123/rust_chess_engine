@@ -1,14 +1,19 @@
 
 
 
-fn legal_move_filter() -> Vec<Move> {
+fn legal_move_filter(position: &Position , moves : Vec<Moves>) -> Vec<Move> {
 
-check_for_pins();
+    let mut legal_moves = Vec::new();    
 
-king_in_check_filter();
+    for pseudo_move in moves {
+        position.make_move();
 
-move_in_check();
+        if !is_in_check(position, position.player_to_move) {
+            legal_moves.push(pseudo_move)
+        }
 
-castling_prohibited()
-
+        position.unmake_move()
+    }
+    return legal_moves;
 }
+
