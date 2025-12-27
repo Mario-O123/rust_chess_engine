@@ -12,8 +12,8 @@ pub fn perft(position: &Position, depth: u32) -> u64 {
         return 1;
     }
 
-    let pseudo_moves = generate_pseudo_legal_moves(position, position.last_move);
-    let legal_moves = filter_legal_moves(position, &pseudo_moves);
+    let pseudo_moves = pseudo_legal_moves(position, position.last_move);
+    let legal_moves = legal_move_filter(position, &pseudo_moves);
 
     let mut nodes = 0;
 
