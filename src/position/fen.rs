@@ -32,6 +32,9 @@ impl Position {
         parse_piece_placement(fields[0], &mut pos)?;
         pos.player_to_move =parse_active_color(fields[1])?;
         pos.castling_rights = parse_castling(fields[2])?;
+        pos.en_passant_square = parse_en_passant(fields[3])?;
+        pos.half_move_clock = parse_halfmove_clock(fields[4])?;
+        pos.move_counter = parse_fullmove_counter(fields[5])?;
 
 
         Ok(pos)
@@ -153,6 +156,50 @@ fn parse_castling(field: &str) -> Result<u8, FenError> {
     }
 
     Ok(rights)
+}
+
+fn parse_en_passant(field: &str) -> Result<Option<Square>, FenError> {
+    if field == "-" {
+        return Ok(None);
+    }
+    let square120 = square120_from_string(field).ok_or(FenError::InvalidEnPassant)?;
+
+    if !is_on_board(square120) {
+        return Err(FenError::InvalidEnPassant);
+    }
+
+    let square_string = square120_to_string(square120).ok_or(FenError::InvalidEnPassant)?;
+    let rank_byte = square_string.as_bytes()[1];
+
+    if rank_byte != b'3' && rank_byte != b'6' {
+        return Err(FenError::InvalidEnPassant);
+    }
+
+    Ok(Some(Square::new(square120 as u8)))
+}
+
+fn parse_halfmove_clock(field: &str) -> Result<u16, FenError> {
+    let parsed = field.parse::<u16>();
+
+    match parsed {
+        Ok(value) => Ok(value),
+        Err(_) => Err(FenError::InvalidHalfmove),
+    }
+}
+
+fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
+    let parsed = field.parse::<u16>();
+
+    match parsed {
+        Ok(value) =>
+        if value < 1 {
+            Err(FenError::InvalidFullmove)
+        }
+        else {
+            Ok(value)
+        }
+        Err(_) => Err(FenError::InvalidFullmove),
+    }
 }
 
 #[cfg(test)]
@@ -297,6 +344,53 @@ mod tests {
     #[test]
     fn parse_castling_accepts_any_rights_order() {
         assert_eq!(parse_castling("qK").unwrap(), 0b1001);
+    }
+
+    #[test]
+    fn parse_en_passant_dash_is_none() {
+        assert_eq!(parse_en_passant("-").unwrap(), None);
+    }
+
+    #[test]
+    fn parse_en_passant_accepts_valid_square() {
+        let en_passant = parse_en_passant("e3").unwrap();
+        assert!(en_passant.is_some());
+    }
+
+    #[test]
+    fn parse_en_passant_rejects_invalid_square() {
+        let error = parse_en_passant("x9").unwrap_err();
+        assert_eq!(error, FenError::InvalidEnPassant);
+    }
+
+    #[test]
+    fn parse_en_passant_rejects_wrong_ranks() {
+        let error = parse_en_passant("e4").unwrap_err();
+        assert_eq!(error, FenError::InvalidEnPassant);
+    }
+
+    #[test]
+    fn parse_halfmove_clock_accepts_zero_and_above() {
+        assert_eq!(parse_halfmove_clock("0").unwrap(), 0);
+        assert_eq!(parse_halfmove_clock("1").unwrap(), 1);
+    }
+
+    #[test]
+    fn parse_halfmove_clock_rejects_invalid_input() {
+        assert_eq!(parse_halfmove_clock("-1").unwrap_err(), FenError::InvalidHalfmove);
+        assert_eq!(parse_halfmove_clock("abc").unwrap_err(), FenError::InvalidHalfmove);
+    }
+
+    #[test]
+    fn parse_fullmove_counter_accepts_one_and_above() {
+        assert_eq!(parse_fullmove_counter("1").unwrap(), 1);
+        assert_eq!(parse_fullmove_counter("2").unwrap(), 2);
+    }
+
+    #[test]
+    fn parse_fullmove_counter_rejects_zero_and_invalid() {
+        assert_eq!(parse_fullmove_counter("0").unwrap_err(), FenError::InvalidFullmove);
+        assert_eq!(parse_fullmove_counter("x").unwrap_err(), FenError::InvalidFullmove);
     }
 
 
