@@ -59,8 +59,13 @@ fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Res
 
     for ch in rank_string.chars() {
         match ch {
-            '1'..='8' => { //numbers mean: "skip this many empty fields in a rank"
+            '0'..='9' => { //numbers mean: "skip this many empty fields in a rank"
                 let n = (ch as u8 - b'0') as usize;
+
+                if !(1..=8).contains(&n) {
+                    return Err(FenError::InvalidBoardFormat);
+                }
+
                 file_cursor += n; //adjust the file_cursor to jump forther in the rank
 
                 if file_cursor > 8 { //the rank only ever contains 8 files
@@ -187,7 +192,7 @@ mod tests {
     fn parse_one_rank_rejects_too_large_file_sum() {
         let mut pos = Position::empty();
         let err = parse_one_rank(0, "9", &mut pos).unwrap_err();
-        assert_eq!(err, FenError::InvalidFileSumInOneRank {rank: 0, sum: 9})
+        assert_eq!(err, FenError::InvalidBoardFormat);
     }
 
     #[test]
