@@ -30,7 +30,11 @@ impl Position {
         let mut pos = Position::empty();
 
         parse_piece_placement(fields[0], &mut pos)?;
+        pos.player_to_move =parse_active_color(fields[1])?;
+        pos.castling_rights = parse_castling(fields[2])?;
 
+
+        Ok(pos)
     }
 }
 
@@ -104,6 +108,46 @@ fn fen_char_to_piece(ch: char) -> Option<Piece> {
     };
 
     Some(Piece {color, kind})
+}
+
+//helper for parsing the second FEN-field (strict parsing, don't accept uppercase)
+fn parse_active_color(field: &str) -> Result<Color, FenError> {
+    match field {
+        "w" => Ok(Color::White),
+        "b" => Ok(Color::Black),
+        _ => Err(FenError::InvalidCurrentColor),
+    }
+}
+
+//helper for parsing the third FEN-field (tolerant parsing, accept different ordering)
+fn parse_castling(field: &str) -> Result<u8, FenError> {
+    if field == "-" {
+        return Ok(0);
+    }
+    //Maybe add here another if: "0" returns Ok(0)
+    if field.contains('-') {
+        return Err(FenError::InvalidCastling);
+    }
+
+    let mut rights: u8 = 0;
+    for ch in field.chars() {
+        let bit = match ch {
+            'K' => 0b0001,
+            'Q' => 0b0010,
+            'k' => 0b0100,
+            'q' => 0b1000,
+            _ => return Err(FenError::InvalidCastling),
+        };
+
+        //bitwise addition on rights resulting in 1, means the bit was already updated (read before)
+        if rights & bit != 0 {
+        return Err(FenError::InvalidCastling);
+        }
+        //update the bit in the rights, only if the corresponding character is read the first time
+        rights |= bit;
+    }
+
+    Ok(rights)
 }
 
 #[cfg(test)]
@@ -204,6 +248,51 @@ mod tests {
         assert!(fen_char_to_piece('X').is_none());
     }
 
+    #[test]
+    fn parse_active_color_accepts_w_and_b() {
+        assert_eq!(parse_active_color("w").unwrap(), Color::White);
+        assert_eq!(parse_active_color("b").unwrap(), Color::Black);
+    }
+
+    #[test]
+    fn parse_active_color_rejects_invalid() {
+        assert_eq!(parse_active_color("c").unwrap_err(), FenError::InvalidCurrentColor);
+    }
+
+    #[test]
+    fn parse_castling_dash_means_no_rights() {
+        assert_eq!(parse_castling("-").unwrap(), 0);
+    }
+
+    #[test]
+    fn parse_castling_all_rights() {
+        assert_eq!(parse_castling("KQkq").unwrap(), 0b1111);
+    }
+
+    #[test]
+    fn parse_castling_partiel_rights() {
+        assert_eq!(parse_castling("Kq").unwrap(), 0b1001)
+    }
+    
+    #[test]
+    fn parse_castling_rejects_invalid_character() {
+        assert_eq!(parse_castling("Kx").unwrap_err(), FenError::InvalidCastling);
+    }
+
+    #[test]
+    fn parse_castling_rights_rejects_dash_with_other_chars() {
+        assert_eq!(parse_castling("K-").unwrap_err(), FenError::InvalidCastling);
+    }
+
+    #[test]
+    fn parse_castling_rejects_duplicafes() {
+        assert_eq!(parse_castling("KKq").unwrap_err(), FenError::InvalidCastling);
+    }
+    
+    #[test]
+    fn parse_castling_accepts_any_rights_order() {
+        assert_eq!(parse_castling("qK").unwrap(), 0b1001);
+    }
 
 
 }
