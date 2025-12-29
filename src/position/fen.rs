@@ -22,6 +22,7 @@ pub enum FenError {
 }
 
 impl Position {
+
     pub fn from_fen(fen_string: &str) -> Result<Self, FenError> {
         let fields: Vec<&str> = fen_string.split_whitespace().collect();
         if fields.len() != 6 {
@@ -59,6 +60,18 @@ impl Position {
 
         Ok(pos)
     }
+
+    
+    pub fn to_fen(&self) -> String {
+        let board = piece_placement_to_string(self);
+        let active_color = active_color_to_string(self.player_to_move);
+        let castling = castling_to_string(self.castling_rights);
+        let en_passant = en_passant_to_string(self.en_passant_square);
+
+        format!("{} {} {} {} {} {}", board, active_color, castling, en_passant, self.half_move_clock, self.move_counter)
+    }
+
+
 }
 
 fn parse_piece_placement(board_fields: &str, pos: &mut Position) -> Result<(), FenError> {
@@ -223,6 +236,7 @@ fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
 }
 
 
+
 //helpers for to_fen()
 
 fn piece_placement_to_string(pos: &Position) -> String {
@@ -301,6 +315,13 @@ fn castling_to_string(rights: u8) -> String {
 
     //extra check
     if s.is_empty() {"-".to_string()} else {s}
+}
+
+fn en_passant_to_string(ep_target: Option<Square>) -> String {
+    match ep_target {
+        None => "-".to_string(),
+        Some(square) => square120_to_string(square.as_usize()).unwrap_or_else(|| "-".to_string()),
+    }
 }
 
 
@@ -616,6 +637,60 @@ mod tests {
         assert_eq!(castling_to_string(0b0101), "Kk".to_string());
         assert_eq!(castling_to_string(0b1001), "Kq".to_string());
         assert_eq!(castling_to_string(0b0110), "Qk".to_string());
+    }
+
+    #[test]
+    fn en_passant_to_string_none_and_some_work() {
+        assert_eq!(en_passant_to_string(None), "-".to_string());
+        let square120 = square120_from_string("e3").unwrap();
+        let ep = Some(Square::new(square120 as u8));
+        assert_eq!(en_passant_to_string(ep), "e3".to_string());
+    }
+
+    //testing to_fen
+
+    #[test]
+    fn to_fen_startpos_matches_expected() {
+        let pos = Position::starting_position();
+        assert_eq!(pos.to_fen(), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    }
+    
+    #[test]
+    fn to_fen_empty_position_matches_expected() {
+        let pos = Position::empty();
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 w - - 0 1");
+    }
+
+    #[test]
+    fn to_fen_black_to_move() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::Black;
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 b - - 0 1");
+    }
+
+    #[test]
+    fn to_fen_gives_castling_rights_in_canonic_order() {
+        let mut pos = Position::empty();
+        pos.castling_rights = 0b1001;
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 w Kq - 0 1");
+    }
+
+    #[test]
+    fn to_fen_includes_en_passant_square() {
+        let mut pos = Position::empty();
+
+        let square120 = square120_from_string("e3").unwrap();
+        pos.en_passant_square = Some(Square::new(square120 as u8));
+
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 w - e3 0 1");
+    }
+
+    #[test]
+    fn to_fen_halfmove_and_fullmove_fields_are_used() {
+        let mut pos = Position::empty();
+        pos.half_move_clock = 6;
+        pos.move_counter = 40;
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 w - - 6 40");
     }
     
 
