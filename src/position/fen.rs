@@ -222,6 +222,92 @@ fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
     }
 }
 
+
+//helpers for to_fen()
+
+fn piece_placement_to_string(pos: &Position) -> String {
+    let mut ranks: Vec<String> = Vec::with_capacity(8);
+
+    for rank in (0..8).rev() {
+        ranks.push(encode_rank(pos, rank));
+    }
+
+    ranks.join("/")
+}
+
+//use as helper for piece_placement_to_string, for each specific rank
+fn encode_rank(pos: &Position, rank: usize) -> String {
+    let mut output_string = String::new();
+    let mut empty_squares: u8 = 0;
+
+    for file in 0..8 {
+        let square120 = square120_from_file_rank(file, rank);
+
+        match pos.board[square120] {
+            Cell::Empty => { empty_squares += 1; }
+            Cell::Piece(piece) => {
+                if empty_squares > 0 {
+                    output_string.push(std::char::from_digit(empty_squares as u32, 10).unwrap());
+                    empty_squares = 0;
+                }
+                output_string.push(piece_to_fen_char(piece));
+            }
+            Cell::Offboard => { unreachable!("square120_from_file_square returned offboard square") } //maybe re-think this handling because of crashing?
+        }
+    }
+
+    if empty_squares > 0 {
+            output_string.push(std::char::from_digit(empty_squares as u32, 10).unwrap());
+    }
+
+    output_string
+}
+
+//use as helper for encode_rank()
+//since we changed Piece in position.rs, our piece_to_char() in conversion.rs is of no use now
+fn piece_to_fen_char(piece: Piece) -> char {
+    let piece_char = match piece.kind {
+            PieceKind::Pawn => 'p',
+            PieceKind::Knight => 'n',
+            PieceKind::Bishop => 'b',
+            PieceKind::Rook => 'r',
+            PieceKind::Queen => 'q',
+            PieceKind::King => 'k',
+    };
+
+    match piece.color {
+            Color::White => piece_char.to_ascii_uppercase(),
+            Color::Black => piece_char,
+    }
+}
+
+fn active_color_to_string(color: Color) -> &'static str {
+    match color {
+        Color::White => "w",
+        Color::Black => "b",
+    }
+}
+
+fn castling_to_string(rights: u8) -> String {
+    if rights == 0 {
+        return "-".to_string();
+    }
+
+    let mut s = String::new();
+    if rights & 0b0001 != 0 {s.push('K');}
+    if rights & 0b0010 != 0 {s.push('Q');}
+    if rights & 0b0100 != 0 {s.push('k');}
+    if rights & 0b1000 != 0 {s.push('q');}
+
+    //extra check
+    if s.is_empty() {"-".to_string()} else {s}
+}
+
+
+
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -457,6 +543,79 @@ mod tests {
         let fen = "8/8/8/8/8/8/8/3KK3 w - - 0 1";
         let error = Position::from_fen(fen).unwrap_err();
         assert_eq!(error, FenError::InvalidKingCount {color: Color::White, found: 2});
+    }
+
+    //testing to_fen() helpers
+    #[test]
+    fn enocode_rank_empty_rank_is_8() {
+        let pos = Position::empty();
+        assert_eq!(encode_rank(&pos, 7), "8");
+    }
+
+    fn encode_rank_startposition_rank8_is_correct() {
+        let pos = Position::starting_position();
+        assert_eq!(encode_rank(&pos, 7), "rnbqkbnr");
+    }
+    
+    #[test]
+    fn ecode_rank_single_piece_with_gaps() {
+        let mut pos = Position::empty();
+        let d8 = square120_from_file_rank(3, 7);
+        pos.board[d8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Queen});
+        assert_eq!(encode_rank(&pos, 7), "3q4");
+    }
+
+    #[test]
+    fn encode_rank_flushes_trailing_empty_squares() {
+        let mut pos = Position::empty();
+        let a8 = square120_from_file_rank(0, 7);
+        pos.board[a8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook});
+        assert_eq!(encode_rank(&pos, 7), "r7");
+    }
+
+    #[test]
+    fn piece_placement_to_string_empty_board_is_all_8s() {
+        let pos = Position::empty();
+        assert_eq!(piece_placement_to_string(&pos), "8/8/8/8/8/8/8/8");
+    }
+    #[test]
+    fn piece_placement_to_string_startpos_matches_expected() {
+        let pos = Position::starting_position();
+        assert_eq!(piece_placement_to_string(&pos), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    }
+
+    #[test]
+    fn piece_placement_to_string_single_piece() {
+        let mut pos = Position::empty();
+        let d8 = square120_from_file_rank(3, 7);
+        pos.board[d8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Queen});
+        assert_eq!(piece_placement_to_string(&pos), "3q4/8/8/8/8/8/8/8");
+    }
+
+
+    #[test]
+    fn piece_to_fen_char_uppercase_and_lowercase_works() {
+        let white_char = piece_to_fen_char(Piece {color: Color::White, kind: PieceKind::Knight});
+        assert_eq!(white_char, 'N');
+
+        let black_char = piece_to_fen_char(Piece {color: Color::Black, kind: PieceKind::Queen});
+        assert_eq!(black_char, 'q');
+    }
+
+    #[test]
+    fn castling_to_string_zero_is_dash() {
+        assert_eq!(castling_to_string(0), "-".to_string());
+    }
+
+    #[test]
+    fn castling_to_string_all_rights_is_KQkq() {
+        assert_eq!(castling_to_string(0b1111), "KQkq".to_string());
+    }
+    #[test]
+    fn castling_to_string_canonical_order() {
+        assert_eq!(castling_to_string(0b0101), "Kk".to_string());
+        assert_eq!(castling_to_string(0b1001), "Kq".to_string());
+        assert_eq!(castling_to_string(0b0110), "Qk".to_string());
     }
     
 
