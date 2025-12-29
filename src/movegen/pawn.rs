@@ -13,14 +13,14 @@
         if let Cell::Piece(piece) = position.board[square] {
         match piece.color {
         Color::White => {
-        if pawn_starts_white.contains(square) && position.board[(square as i8 +10) as usize]== Cell::Empty && 
+        if pawn_starts_white.contains(&square) && position.board[(square as i8 +10) as usize]== Cell::Empty && 
         position.board[(square as i8 +20) as usize ]== Cell::Empty{
             //push 2 up move to vector
             moves.push(Move::new(square, (square+20)));
         }
         if position.board[(square as i8 +10) as usize] == Cell::Empty {
             //push 1 up move to vector
-            if pawn_promotion_rank_white.contains(square+10) {
+            if pawn_promotion_rank_white.contains(&square+10) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 +10) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +10) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +10) as u8, PromotionPiece::Rook));
@@ -33,7 +33,7 @@
         if let Cell::Piece(piece) = position.board[(square as i8  + 11) as usize] {
             if piece.color == Color::Black {
                 // push take right to vector
-                if pawn_promotion_rank_white.contains((square as i8 +11) as usize) {
+                if pawn_promotion_rank_white.contains((&square as i8 +11) as usize) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 +11) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +11) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +11) as u8, PromotionPiece::Rook));
@@ -47,7 +47,7 @@
         if let Cell::Piece(piece) = position.board[(square as i8  + 9) as usize] {
             if piece.color == Color::Black {
                 // push take left to vector
-                if pawn_promotion_rank_white.contains((square as i8 +9) as usize) {
+                if pawn_promotion_rank_white.contains((&square as i8 +9) as usize) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 +9) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +9) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 +9) as u8, PromotionPiece::Rook));
@@ -61,7 +61,7 @@
     }
 
         Color::Black =>  {
-        if pawn_starts_black.contains(square) && position.board[(square as i8 -10) as usize ]== Cell::Empty && 
+        if pawn_starts_black.contains(&square) && position.board[(square as i8 -10) as usize ]== Cell::Empty && 
         position.board[(square as i8 -20) as usize ]== Cell::Empty{
             //push 2 up move to vector
             moves.push(Move::new(square as u8, (square as i8 -20) as u8));
@@ -69,7 +69,7 @@
         }
         if position.board[(square as i8 -10) as usize] == Cell::Empty {
             //push 1 up move to vector
-            if pawn_promotion_rank_black.contains((square as i8 -10)as usize) {
+            if pawn_promotion_rank_black.contains((&square as i8 -10)as usize) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 -10) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -10) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -10) as u8, PromotionPiece::Rook));
@@ -82,7 +82,7 @@
         if let Cell::Piece(piece) = position.board[(square as i8 - 11) as usize] {
             if piece.color == Color::White {
                 // push take right to vector
-                if pawn_promotion_rank_black.contains((square as i8 -11) as usize) {
+                if pawn_promotion_rank_black.contains((&square as i8 -11) as usize) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 -11) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -11) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -11) as u8, PromotionPiece::Rook));
@@ -95,7 +95,7 @@
         if let Cell::Piece(piece) = position.board[(square as i8  - 9) as usize] {
             if piece.color == Color::White {
                 // push take left to vector
-                if pawn_promotion_rank_black.contains(square-9) {
+                if pawn_promotion_rank_black.contains(&square-9) {
                 moves.push(Move::new_promotion(square as u8, (square as i8 -9) as u8, PromotionPiece::Knight));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -9) as u8, PromotionPiece::Bishop));
                 moves.push(Move::new_promotion(square as u8, (square as i8 -9) as u8, PromotionPiece::Rook));

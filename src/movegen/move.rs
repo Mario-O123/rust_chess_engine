@@ -8,9 +8,20 @@ use crate::position::PieceKind;
 /// - Bits 14-15: move type (2 bits, 4 different types)
 /// 
 /// Total: 16 bits = 2 bytes per move
-#[derive(Debug Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
-    data: u16,
+    pub from: u8,
+    pub to: u8,
+    pub move_type: MoveType,
+    pub promotion: Option<PromotionPiece>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromotionPiece {
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
 }
 
 
@@ -68,37 +79,46 @@ impl PromotionPiece {
     }
 }
 
+
 impl Move {
     //creates NULL-Move
     pub const NULL: Move = Move {data: 0};
 
+    #[inline]
+    pub fn from(&self) -> usize {
+        (self.data & FROM_MASK) as usize
+    }
 
     //creates normal move
     pub fn new(from: usize, to: usize) -> Self {
-        debug_assert!(from < 120 || from > 0, "from square out of bounds");
-        debug_assert!(to < 120 || to > 0, "to square out of bounds");
+        debug_assert!(from < 120 && from > 0, "from square out of bounds");
+        debug_assert!(to < 120 && to > 0, "to square out of bounds");
 
-        let data = (from as u16)
-            | ((to as u16) << TO_SHIFT)
-            | ((MoveType::Normal as u16) << TYPE_SHIFT);
-
-        Move {data}
+        Move {
+            from: from as u8,
+            to: to as u8,
+            move_type: MoveType::Normal,
+            promotion: None,
+        }
     }
+    
     //creates pawn promotion
     pub fn new_promotion(from: usize, to: usize, promotion: PromotionPiece) -> Self {
-        debug_assert!(from < 120 || from > 0, "from square out of bounds");
-        debug_assert!(to < 120 || to > 0, "to square out of bounds");
+        debug_assert!(from < 120 && from > 0, "from square out of bounds");
+        debug_assert!(to < 120 && to > 0, "to square out of bounds");
         
-        let data = (from as u16)
-        | ((to as u16) << TO_SHIFT)
-        | ((MoveType::Promotion as u16) << TYPE_SHIFT);
-
-    Move { data }
+        Move {
+            from: from as u8,
+            to: to as u8,
+            move_type: MoveType::Promotion,
+            promotion: Some(p),
+        }
     }
+    
     // creates new en passant 
     pub fn new_en_passant(from: usize, to: usize) -> Self {
-        debug_assert!(from < 120 || from > 0, "from square out of bounds");
-        debug_assert!(to < 120 || to > 0, "to square out of bounds");
+        debug_assert!(from < 120 && from > 0, "from square out of bounds");
+        debug_assert!(to < 120 && to > 0, "to square out of bounds");
         
         let data = (from as u16)
             | ((to as u16) << TO_SHIFT)
@@ -136,19 +156,12 @@ impl Move {
             return None;
         }
 
-        let promo_bits = ((self.data >> (TO_SHIFT + 5)) & 0b11) as u8;
-        Some(match promo_bits {
-            0 => PromotionPiece::Knight,
-            1 => PromotionPiece::Bishop,
-            2 => PromotionPiece::Rook,
-            3 => PromotionPiece::Queen,
-            _ => unreachable!(),
-        })
+        self.promotion
     }
 
     //checks if move is null
     #[inline]
-    pub fn is_null(&self) {
+    pub fn is_null(&self) -> bool {
         self.data == 0
     }
     // Checks if this is a promotion
@@ -180,7 +193,6 @@ impl Move {
         let to_str = square120_to_string(self.to())
             .expect("valid to square");
 
-        // Promotion-Suffix NICHT hier anhängen
         format!("{}{}", from_str, to_str)
     }
 
@@ -192,16 +204,23 @@ impl Move {
             return Some(Move::NULL);
         }
 
-        if uci.len() < 4 {
+        if uci.len() != 4 && uci.len() != 5 {
             return None;
         }
 
         let from = square120_from_string(&uci[0..2])?;
         let to = square120_from_string(&uci[2..4])?;
 
-        // Promotion → nur Promotion-TYP
         if uci.len() == 5 {
-            return Some(Move::new_promotion(from, to));
+            let promo = match uci.chars().nth(4)? {
+                'n' | 'N' => PromotionPiece::Knight,
+                'b' | 'B' => PromotionPiece::Bishop,
+                'r' | 'R' => PromotionPiece::Rook,
+                'q' | 'Q' => PromotionPiece::Queen,
+                _ => return None,
+            };
+
+            return Some(Move::new_promotion(from, to, promo));
         }
 
         Some(Move::new(from, to))
@@ -209,7 +228,7 @@ impl Move {
 }
 
 impl std::fmt::Display for Move {
-    fn stmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_uci())
     }
 }

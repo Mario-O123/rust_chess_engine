@@ -14,7 +14,7 @@ use crate::board::mailbox120::{
 pub struct Pin {
     pub pinned_square: usize,
     pub pinner_square: usize,
-    pub kin_square: usize,
+    pub king_square: usize,
     pub direction: i8,
 }
 
@@ -133,8 +133,8 @@ fn check_pin_in_direction(
     enemy_color: Color,
     is_rook_direction: bool, // true = Rook/Queen, false = Bishop/Queen
 ) -> Option<Pin> {
-    let mut current = (kin_square as i32 + direction as i32) as usize;
-    let mut potenial_pinned: Option<usize> = None;
+    let mut current = (king_square as i32 + direction as i32) as usize;
+    let mut potential_pinned: Option<usize> = None;
 
     loop {
 
@@ -146,10 +146,10 @@ fn check_pin_in_direction(
             
             //own piece
             if piece.color == friendly_color {
-                if potenial_pinned.is_some() {
+                if potential_pinned.is_some() {
                     return None;
                 }
-                potenial_pinned = Cell::Piece(current);
+                potential_pinned = Some(current);
                 current = (current as i32 + direction as i32) as usize;
                 continue;
             }
@@ -165,9 +165,9 @@ fn check_pin_in_direction(
                         _ => false,
                 };
 
-                if can_pin && potenial_pinned.is_some() {
+                if can_pin && potential_pinned.is_some() {
                     return Some(Pin {
-                        pinnend_square: potenial_pinned.unwrap(),
+                        pinned_square: potential_pinned.unwrap(),
                         pinner_square: current,
                         king_square,
                         direction,
@@ -235,7 +235,7 @@ fn find_xray_in_direction(
             break;
         }
 
-        if let Some(piece) = &position.board[current] {
+        if let Cell::Piece(piece) = position.board[current] {
             
             if !blocker_found {
                 //first piece could be blocker
