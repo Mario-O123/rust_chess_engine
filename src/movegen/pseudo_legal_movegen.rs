@@ -1,41 +1,44 @@
-
-
-
 // const sliding: [bool;5] = [false, true, true, true, false]; //knight bishop rook queen king 
 //braucht man denke nicht wenn man jedes piece sowieso seperat behandelt aber vllt nicht jedes piece seperat behandeln sondern
 // nur in sliding und nicht sliding unterscheiden /  und halt in pawn moves am anfang sowieso 
-const knight_offsets:[i8; 8] = [21, (-21), 19 , (-19), 12 , (-12) , 8 , (-8) ];
-const bishop_offsets:[i8; 4] = [11, (-11), 9, (-9)];
-const rook_offsets:[i8; 4] = [1, (-1), 10, (-10)];
-const king_queen_offsets:[i8; 8] = [1 , (-1), 10, (-10), 11 , (-11), 9, (-9)];
 
-fn generate_pseudo_legal_moves(position : &Position, last_move: Move) -> Vec<Move> {
+use crate::position::{Position, Cell, PieceKind};
+use crate::board::mailbox120::{
+    BOARD_SIZE, is_on_board, KNIGHT_DIRECTIONS, 
+    BISHOP_DIRECTIONS, ROOK_DIRECTIONS, KING_DIRECTIONS,
+};
+use crate::movegen::{Move};
+
+
+pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
     let mut move_list = Vec::new();
-    for square120 in 21..=98 {
+
+    for square120 in 0..BOARD_SIZE {
         if !is_on_board(square120) {
             continue;
         } 
-    if let Cell::Piece(piece) = position.board[square120] {
-        if piece.color == player_to_move {
+
+        let Cell::Piece(piece) = position.board[square120] else {continue;};
+        if piece.color != position.player_to_move {continue;} 
     
         match piece.kind {
             PieceKind::Knight => { 
-                gen_jumping_moves(position, &mut move_list, square120, &knight_offsets);
+                piece::gen_jumping_moves(position, &mut move_list, square120, &KNIGHT_DIRECTIONS);
             }PieceKind::Bishop => {
-                gen_sliding_moves(position, &mut move_list, square120, &bishop_offsets);
+                gen_sliding_moves(position, &mut move_list, square120, &BISHOP_DIRECTIONS);
             }PieceKind::Pawn => {
-                gen_pawn_moves(position, &mut move_list, square120, position.last_move);
-                en_passant_moves(position, &mut move_list, square120, position.last_move);
+                pawn::gen_pawn_moves(position, &mut move_list, square120);
             }PieceKind::Rook => {
-                gen_sliding_moves(position, &mut move_list, square120, &rook_offsets);
+                piece::gen_sliding_moves(position, &mut move_list, square120, &ROOK_DIRECTIONS);
             }PieceKind::Queen => {
-                gen_sliding_moves(position, &mut move_list, square120, &king_queen_offsets);
+                piece::gen_sliding_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
             }PieceKind::King => {
-                gen_jumping_moves(position, &mut move_list, square120, &king_queen_offsets);
-                gen_castling_moves(position, &mut move_list, square120);
+                piece::gen_jumping_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
+                piece::gen_castling_moves(position, &mut move_list, square120);
             }
-        }}
-}
+        }
     }
-return move_list;
+    move_list
 }
+
+
