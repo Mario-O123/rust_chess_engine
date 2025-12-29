@@ -18,7 +18,7 @@ pub enum FenError {
     InvalidHalfmove,
     InvalidFullmove,
 
-    InvalidKingCount {color: Color, found: u8},
+    InvalidKingCount {color: Color, found: usize},
 }
 
 impl Position {
@@ -36,6 +36,26 @@ impl Position {
         pos.half_move_clock = parse_halfmove_clock(fields[4])?;
         pos.move_counter = parse_fullmove_counter(fields[5])?;
 
+        //sanity-check: we have exactly 1 white and black king, this way we don't have to rely on the panic in compute_king_sq()
+        let white_king_count = pos.find_pieces(Color::White, PieceKind::King).len();
+        if white_king_count != 1 {
+            return Err(FenError::InvalidKingCount {
+                color: Color::White,
+                found: white_king_count,
+            });
+        }
+
+        let black_king_count = pos.find_pieces(Color::Black, PieceKind::King).len();
+        if black_king_count != 1 {
+            return Err(FenError::InvalidKingCount {
+                color: Color::Black,
+                found: black_king_count,
+            });
+        }
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
 
         Ok(pos)
     }
@@ -392,6 +412,53 @@ mod tests {
         assert_eq!(parse_fullmove_counter("0").unwrap_err(), FenError::InvalidFullmove);
         assert_eq!(parse_fullmove_counter("x").unwrap_err(), FenError::InvalidFullmove);
     }
+
+    #[test]
+    fn from_fen_parses_startposition() {
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let pos = Position::from_fen(fen).expect("startposition fen should parse");
+
+        let a8 = square120_from_file_rank(0, 7);
+        assert_eq!(pos.board[a8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook}));
+
+        let e1 = square120_from_file_rank(4, 0);
+        assert_eq!(pos.board[e1], Cell::Piece(Piece {color: Color::White, kind: PieceKind::King}));
+    
+        assert_eq!(pos.player_to_move, Color::White);
+        assert_eq!(pos.castling_rights, 0b1111);
+        assert_eq!(pos.en_passant_square, None);
+        assert_eq!(pos.half_move_clock, 0);
+        assert_eq!(pos.move_counter, 1);
+    }
+
+    #[test]
+    fn from_fen_rejects_wrong_field_count() {
+        let fen = "8/8/8/8/8/8/8/8 1 - - 0";
+        let error = Position::from_fen(fen).unwrap_err();
+        assert_eq!(error, FenError::InvalidFieldCount {found: 5});
+    }
+
+    #[test]
+    fn from_fen_rejects_fullmove_zero() {
+        let fen = "8/8/8/8/8/8/8/8 w - - 0 0";
+        let error = Position::from_fen(fen).unwrap_err();
+        assert_eq!(error, FenError::InvalidFullmove);
+    }
+
+    #[test]
+    fn from_fen_rejects_missing_king() {
+        let fen = "8/8/8/8/8/8/8/4K3 w - - 0 1";
+        let error = Position::from_fen(fen).unwrap_err();
+        assert_eq!(error, FenError::InvalidKingCount {color: Color::Black, found: 0});
+    }
+
+    #[test]
+    fn from_fen_rejects_two_kings() {
+        let fen = "8/8/8/8/8/8/8/3KK3 w - - 0 1";
+        let error = Position::from_fen(fen).unwrap_err();
+        assert_eq!(error, FenError::InvalidKingCount {color: Color::White, found: 2});
+    }
+    
 
 
 }
