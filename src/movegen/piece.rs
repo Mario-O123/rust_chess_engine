@@ -5,15 +5,16 @@
 
 fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i8] ) {
      for offset in piece_offsets {
-                    let mut target = square as i8 + offset;
+                    let mut target = square as i32 + *offset as i32;
                     if target < 0 {
                         continue;
                     }
-                    while target >= 0 && position.board[target as usize] != Cell::Offboard  {
+                    while target >= 0 && target < 120 && position.board[target as usize] != Cell::Offboard  {
+                        let target_usize = target as usize;
                         if position.board[target as usize] == Cell::Empty {
                             // push move 
                             moves.push(Move::new(square as u8 , target as u8));
-                            target += offset;
+                            target += *offset as i32;
                         }else if matches!((position.board[target], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square)) 
                                  if slider_target.color == slider_square.color.opposite()){
                             //push move with capture

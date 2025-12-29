@@ -11,7 +11,6 @@ use crate::board::mailbox120::{
     ROOK_DIRECTIONS,
     BISHOP_DIRECTIONS,
 };
-use crate::movegen::attacks::find_king;
 
 
 
