@@ -2,15 +2,9 @@
 
 use crate::position::PieceKind;
 
-/// Bit Layout:
-/// - Bits 0-6:   from square (7 bits, supports 0-127, we use 0-119)
-/// - Bits 7-13:  to square (7 bits, supports 0-127, we use 0-119)
-/// - Bits 14-15: move type (2 bits, 4 different types)
-/// 
-/// Total: 16 bits = 2 bytes per move
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
-    pub from: u8,
+    pub from: u8, 
     pub to: u8,
     pub move_type: MoveType,
     pub promotion: Option<PromotionPiece>,
@@ -24,15 +18,6 @@ pub enum PromotionPiece {
     Queen,
 }
 
-
-//Bitmasks
-const FROM_MASK: u16 = 0b0000_0000_0111_1111;  // Bits 0-6
-const TO_MASK: u16 = 0b0011_1111_1000_0000;    // Bits 7-13
-const TYPE_MASK: u16 = 0b1100_0000_0000_0000;  // Bits 14-15
-
-const TO_SHIFT: u16 = 7;
-const TYPE_SHIFT: u16 = 14;
-
 //Move Types
 #[derive(Debug, Clone, Copy, PartialEq, Eq,)]
 #[repr(u8)]
@@ -41,18 +26,6 @@ pub enum MoveType {
     Promotion = 1, //0b01 Pawn Promotion
     EnPassant = 2, // 0b10 En Passent capture
     Castling = 3, // 0b11 Castling 
-}
-
-impl MoveType {
-    fn from_u8(value:u8) -> Self {
-        match value {
-            0 => MoveType::Normal,
-            1 => MoveType::Promotion,
-            2 => MoveType::EnPassant,
-            3 => MoveType::Castling,
-            _ => unreachable!("Invalid move type: {}", value),
-        }
-    }
 }
 
 
@@ -77,24 +50,50 @@ impl PromotionPiece {
             _ => None,
         }
     }
+
+    pub fn to_uci_char(self) -> char {
+        match self {
+            PromotionPiece::Knight => 'n',
+            PromotionPiece::Bishop => 'b',
+            PromotionPiece::Rook => 'r',
+            PromotionPiece::Queen => 'q',
+        }
+    }
 }
 
 
 impl Move {
     //creates NULL-Move
-    pub const NULL: Move = Move {data: 0};
+    pub const NULL: Self = Self {
+        from: 0, to: 0, move_type: MoveType::Normal, promotion: None
+    };
 
     #[inline]
-    pub fn from(&self) -> usize {
-        (self.data & FROM_MASK) as usize
+    pub fn is_null(&self) -> bool {
+        self.from == 0 && self.to == 0
     }
+
+    #[inline]
+    pub fn from_sq (&self) -> usize {
+        self.from as usize
+    }
+
+    #[inline]
+    pub fn to_sq (&self) -> usize {
+        self.to as usize
+    }
+
+    #[inline]
+    pub fn move_type(&self) -> MoveType {
+        self.move_type
+    }
+
 
     //creates normal move
     pub fn new(from: usize, to: usize) -> Self {
-        debug_assert!(from < 120 && from > 0, "from square out of bounds");
-        debug_assert!(to < 120 && to > 0, "to square out of bounds");
-
-        Move {
+        debug_assert!(from < 120 && to < 120, "Out of bounds");
+        
+        Self {
             from: from as u8,
             to: to as u8,
             move_type: MoveType::Normal,
@@ -104,52 +103,41 @@ impl Move {
     
     //creates pawn promotion
     pub fn new_promotion(from: usize, to: usize, promotion: PromotionPiece) -> Self {
-        debug_assert!(from < 120 && from > 0, "from square out of bounds");
-        debug_assert!(to < 120 && to > 0, "to square out of bounds");
-        
+        debug_assert!(from < 120 && to < 120, "Out of bounds");
+                
         Move {
             from: from as u8,
             to: to as u8,
             move_type: MoveType::Promotion,
-            promotion: Some(p),
+            promotion: Some(promotion),
         }
     }
     
     // creates new en passant 
     pub fn new_en_passant(from: usize, to: usize) -> Self {
-        debug_assert!(from < 120 && from > 0, "from square out of bounds");
-        debug_assert!(to < 120 && to > 0, "to square out of bounds");
-        
-        let data = (from as u16)
-            | ((to as u16) << TO_SHIFT)
-            | ((MoveType::EnPassant as u16) << TYPE_SHIFT);
-        
-        Move { data }
+        debug_assert!(from < 120 && to < 120, "Out of bounds");
+
+        Self {
+            from: from as u8,
+            to: to as u8,
+            move_type: MoveType::EnPassant,
+            promotion: None,
+        }
     }
-    //creates new castling move
-    pub fn new_castling(from: usize, to: usize) ->  Self {
-        debug_assert!(from < 120, "from square out of bounds");
-        debug_assert!(to < 120, "to square out of bounds");
-        
-        let data = (from as u16)
-            | ((to as u16) << TO_SHIFT)
-            | ((MoveType::Castling as u16) << TYPE_SHIFT);
-        
-        Move { data }
+
+    pub fn new_castling(from: usize, to: usize) -> Self {
+        debug_assert!(from < 120 && to < 120, "Out of bounds");
+
+        Self {
+            from: from as u8,
+            to: to as u8,
+            move_type: MoveType::Castling,
+            promotion: None,
+        }
     }
+
     
     
-    //gets the from square120
-    #[inline]
-    pub fn to(&self) -> usize {
-        ((self.data & TO_MASK) >> TO_SHIFT) as usize & 0b0111_11111
-    }
-    //gets the move type
-    #[inline]
-    pub fn move_type(&self) -> MoveType {
-        let type_bits = ((self.data & TYPE_MASK) >> TYPE_SHIFT) as u8;
-        MoveType::from_u8(type_bits)
-    }
     //gets the promotion
     pub fn promotion_piece(&self) -> Option<PromotionPiece> {
         if self.move_type() != MoveType::Promotion {
@@ -159,11 +147,7 @@ impl Move {
         self.promotion
     }
 
-    //checks if move is null
-    #[inline]
-    pub fn is_null(&self) -> bool {
-        self.data == 0
-    }
+    
     // Checks if this is a promotion
     #[inline]
     pub fn is_promotion(&self) -> bool {
@@ -188,12 +172,16 @@ impl Move {
             return "0000".to_string();
         }
 
-        let from_str = square120_to_string(self.from())
-            .expect("valid from square");
-        let to_str = square120_to_string(self.to())
-            .expect("valid to square");
+        let mut s = format!(
+            "{}{}",
+            square120_to_string(self.from_sq()).unwrap(),
+            square120_to_string(self.to_sq()).unwrap(),
+        );
 
-        format!("{}{}", from_str, to_str)
+        if let Some(p) = self.promotion {
+            s.push(p.to_uci_char())
+        }
+        s
     }
 
     //creates a move from a UCI format
