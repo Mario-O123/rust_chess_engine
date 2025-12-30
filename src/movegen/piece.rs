@@ -6,13 +6,13 @@ fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize 
                     if target < 0 {
                         continue;
                     }
-                    while target >= 0 && target < 120 && position.board[target as usize] != Cell::Offboard  {
+                    while target >= 0 && target < 120 && position.board[target as usize] != Cell::Offboard {
                         let target_usize = target as usize;
                         if position.board[target as usize] == Cell::Empty {
                             // push move 
                             moves.push(Move::new(square as u8 , target as u8));
                             target += *offset as i32;
-                        }else if matches!((position.board[target], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square)) 
+                        }else if matches!((position.board[target], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square))
                                  if slider_target.color == slider_square.color.opposite()){
                             //push move with capture
                             moves.push(Move::new(square as u8 , target as u8));
@@ -21,11 +21,11 @@ fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize 
                         }else {
                             break;
                         }
-                }
+                    }
                 
             }
 }
-//hier könnte man zeilen sparen anstatt für empty und enemy piece zu cheken einen check für nicht offboard oder ma lässt so wenn man noch ne capture flag will
+
 fn gen_jumping_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i8] ) {
     for offset in piece_offsets {
                 if (square as i8 + offset) < 0 {
@@ -48,8 +48,7 @@ fn gen_jumping_moves(position: &Position, moves: &mut Vec<Move> , square: usize 
 
 }
 
-// hier braucht man color castling rights struct aus gamestate und dann noch schauen ob die felder zwischen king und rook None sind
-//hier eventuell nur legal moves generieeren noch machen
+//color castling rights struct of gamestate and if between king and rok is none
 fn gen_castling_moves(position : &Position , moves: &mut Vec<Move> , square: usize) {
 match position.board[square] {
     Cell::Piece(Piece { color : Color::White , kind : PieceKind::King}) => {
