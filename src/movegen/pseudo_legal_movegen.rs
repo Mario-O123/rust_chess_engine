@@ -1,6 +1,4 @@
 // const sliding: [bool;5] = [false, true, true, true, false]; //knight bishop rook queen king 
-//braucht man denke nicht wenn man jedes piece sowieso seperat behandelt aber vllt nicht jedes piece seperat behandeln sondern
-// nur in sliding und nicht sliding unterscheiden /  und halt in pawn moves am anfang sowieso 
 
 use crate::position::{Position, Cell, PieceKind};
 use crate::board::mailbox120::{
