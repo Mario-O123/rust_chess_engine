@@ -1,13 +1,8 @@
 //Pin detection and X-Ray Attacks
 //pinned if piece cant move without having own king in check
 
-use crate::position::{Position, Color, PieceKind, Cell};
-use crate::board::mailbox120::{
-    is_on_board,
-    ROOK_DIRECTIONS,
-    BISHOP_DIRECTIONS,
-};
-
+use crate::board::mailbox120::{BISHOP_DIRECTIONS, ROOK_DIRECTIONS, is_on_board};
+use crate::position::{Cell, Color, PieceKind, Position};
 
 //Pin representation
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,7 +13,7 @@ pub struct Pin {
     pub direction: i8,
 }
 
-//finds all pins for given color 
+//finds all pins for given color
 //returns vec of all pins
 pub fn find_all_pins(position: &Position, color: Color) -> Vec<Pin> {
     let mut pins = Vec::new();
@@ -29,31 +24,20 @@ pub fn find_all_pins(position: &Position, color: Color) -> Vec<Pin> {
 
     //checks Rook
     for &direction in &ROOK_DIRECTIONS {
-        if let Some(pin) = check_pin_in_direction (
-            position,
-            king_square,
-            direction,
-            color,
-            enemy_color,
-            true
-        )  {
+        if let Some(pin) =
+            check_pin_in_direction(position, king_square, direction, color, enemy_color, true)
+        {
             pins.push(pin);
-        }       
-        
+        }
     }
 
     //checks Bishops
     for &direction in &BISHOP_DIRECTIONS {
-        if let Some(pin) = check_pin_in_direction (
-            position,
-            king_square,
-            direction,
-            color,
-            enemy_color,
-            false
-        )  {
+        if let Some(pin) =
+            check_pin_in_direction(position, king_square, direction, color, enemy_color, false)
+        {
             pins.push(pin);
-        }   
+        }
     }
 
     pins
@@ -91,17 +75,17 @@ pub fn is_move_legal_if_pinned(pin: &Pin, from: usize, to: usize) -> bool {
 }
 
 //Helperfunction: checks if square on pin-line
-fn is_on_pin_line(from: usize, to: usize, king_square: usize, pin_direction: i8) -> bool {
+fn is_on_pin_line(from: usize, to: usize, pin_direction: i8) -> bool {
     // checks if from->to same direction as pin direction
     let diff = (to as i32 - from as i32) as i32;
     if diff == 0 {
         return false;
     }
-    
-    // Normalize both 
-    let pin_dir_norm = normalize_direction(pin_direction);
+
+    // Normalize both
+    let pin_dir_norm = normalize_direction(pin_direction as i32);
     let move_dir_norm = normalize_direction(diff);
-    
+
     pin_dir_norm == move_dir_norm || pin_dir_norm == -move_dir_norm
 }
 
@@ -127,7 +111,7 @@ fn normalize_direction(dir: i32) -> i8 {
     } else if abs % 11 == 0 {
         return (11 * sign) as i8; // Diagonal \
     }
-    
+
     return 0;
 }
 
@@ -144,13 +128,11 @@ fn check_pin_in_direction(
     let mut potential_pinned: Option<usize> = None;
 
     loop {
-
         if !is_on_board(current) {
             break;
         }
 
         if let Cell::Piece(piece) = &position.board[current] {
-            
             //own piece
             if piece.color == friendly_color {
                 if potential_pinned.is_some() {
@@ -166,10 +148,10 @@ fn check_pin_in_direction(
                 //is it a slider?
                 let can_pin = match (is_rook_direction, &piece.kind) {
                     (true, PieceKind::Rook) => true,
-                        (true, PieceKind::Queen) => true,
-                        (false, PieceKind::Bishop) => true,
-                        (false, PieceKind::Queen) => true,
-                        _ => false,
+                    (true, PieceKind::Queen) => true,
+                    (false, PieceKind::Bishop) => true,
+                    (false, PieceKind::Queen) => true,
+                    _ => false,
                 };
 
                 if can_pin && potential_pinned.is_some() {
@@ -183,12 +165,12 @@ fn check_pin_in_direction(
                 return None;
             }
         }
-    current = (current as i32 + direction as i32) as usize;
+        current = (current as i32 + direction as i32) as usize;
     }
     None
 }
 
-//xray attack = find figure that would put king to check 
+//xray attack = find figure that would put king to check
 //if they werent blocked by other piece
 // KING----PAWN----queen -> queen would be a xray attacker
 pub fn find_xray_attackers(
@@ -200,26 +182,18 @@ pub fn find_xray_attackers(
 
     //check ROOK
     for &direction in &ROOK_DIRECTIONS {
-        if let Some(attacker) = find_xray_in_direction(
-            position,
-            target_square,
-            direction,
-            by_color,
-            true,
-        ) {
+        if let Some(attacker) =
+            find_xray_in_direction(position, target_square, direction, by_color, true)
+        {
             xray_attackers.push(attacker);
         }
     }
 
     //check BISHOP
     for &direction in &BISHOP_DIRECTIONS {
-        if let Some(attacker) = find_xray_in_direction(
-            position,
-            target_square,
-            direction,
-            by_color,
-            false,
-        ) {
+        if let Some(attacker) =
+            find_xray_in_direction(position, target_square, direction, by_color, false)
+        {
             xray_attackers.push(attacker);
         }
     }
@@ -236,21 +210,20 @@ fn find_xray_in_direction(
 ) -> Option<usize> {
     let mut current = (target_square as i32 + direction as i32) as usize;
     let mut blocker_found = false;
-    
+
     loop {
         if !is_on_board(current) {
             break;
         }
 
         if let Cell::Piece(piece) = position.board[current] {
-            
             if !blocker_found {
                 //first piece could be blocker
                 blocker_found = true;
                 current = (current as i32 + direction as i32) as usize;
                 continue;
             } else {
-                //second piece could be blocker 
+                //second piece could be blocker
                 if piece.color == by_color {
                     let can_xray = match (is_rook_direction, &piece.kind) {
                         (true, PieceKind::Rook) => true,
@@ -265,13 +238,9 @@ fn find_xray_in_direction(
                     }
                 }
                 return None;
-
             }
         }
         current = (current as i32 + direction as i32) as usize;
     }
     None
 }
-
-
-
