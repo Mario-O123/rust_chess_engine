@@ -22,6 +22,12 @@ pub fn is_square_attacked(position: &Position, square120: usize, by_color: Color
         || attacked_by_king(position, square120, by_color) 
 }
 
+pub fn is_in_check(position: &Position, color: Color) {
+    let king_square = position.king_sq[color.idx()] as usize;
+    let enemy = color.opposite();
+    is_square_attacked(position, king_square, enemy)
+}
+
 //checks if a pawn of given color attacks given square
 //pawns attack diagonally
 fn attacked_by_pawn(position: &Position, square120: usize, by_color: Color) -> bool {
