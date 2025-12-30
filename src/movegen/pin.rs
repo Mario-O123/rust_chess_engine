@@ -23,10 +23,7 @@ pub struct Pin {
 pub fn find_all_pins(position: &Position, color: Color) -> Vec<Pin> {
     let mut pins = Vec::new();
 
-    let king_square = match find_king(position, color) {
-        Some(square) => square,
-        None =>return pins,
-    };
+    let king_square = position.king_sq[color.idx()] as usize;
 
     let enemy_color = color.opposite();
 
@@ -76,11 +73,21 @@ pub fn get_pin(position: &Position, square120: usize, color: Color) -> Option<Pi
 
 //checks if move is legal if there is pinned piece
 pub fn is_move_legal_if_pinned(pin: &Pin, from: usize, to: usize) -> bool {
-    if to == pin.pinned_square {
+    if from != pin.pinned_square {
         return true;
     }
 
-    is_on_pin_line(from, to, pin.king_square, pin.direction)
+    let mut sq = (pin.king_square as i32 + pin.direction as i32) as usize;
+    while is_on_board(sq) {
+        if sq == to {
+            return true;
+        }
+        if sq == pin.pinner_square {
+            break;
+        }
+        sq = (sq as i32 + pin.direction as i32) as usize;
+    }
+    false
 }
 
 //Helperfunction: checks if square on pin-line
