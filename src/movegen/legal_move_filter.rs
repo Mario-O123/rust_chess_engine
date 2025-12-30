@@ -1,11 +1,9 @@
-use crate::position::Position;
 use crate::movegen::Move;
 use crate::movegen::attack::is_in_check;
+use crate::position::Position;
 
-
-fn filter_legal_moves(position: &Position , moves : &[Move]) -> Vec<Move> {
-
-   let mut legal_moves = Vec::new();
+pub fn filter_legal_moves(position: &Position, moves: &[Move]) -> Vec<Move> {
+    let mut legal_moves = Vec::new();
 
     for mv in moves.iter().copied() {
         let mut new_pos = position.clone();
@@ -19,4 +17,3 @@ fn filter_legal_moves(position: &Position , moves : &[Move]) -> Vec<Move> {
 
     legal_moves
 }
-
