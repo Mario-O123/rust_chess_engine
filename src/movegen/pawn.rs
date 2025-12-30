@@ -1,13 +1,10 @@
 //Pawn specific movegen
-//hier parameter square color und vector AUßERDEM BRAUCHT MAN FÜR EN PASSANT LAST MOVE
-
-//man kann hier noch zeilen reduzieren wenn man bei promotion eine funktion aufruft die jedes mögliche promotion_piece einfach als move pusht 
-//anstatt in jedem block die 4 moves einzeln zu pushen
+//here parameter square color and vector WE ABSOLUTELY NEED LAST MOVE FOR EN PASSANT
 
 
     fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize,  last_move: Move) {
-        let pawn_starts_white: [usize;8] = [81,82,83,84,85,86,87,88]; //alle indexe des startrangs weißer pawns
-        let pawn_starts_black: [usize;8] = [31,32,33,34,35,36,37,38]; //alle indexe des startrangs scharzer pawns
+        let pawn_starts_white: [usize;8] = [81,82,83,84,85,86,87,88]; //all white index
+        let pawn_starts_black: [usize;8] = [31,32,33,34,35,36,37,38]; //all Black index
         let pawn_promotion_rank_white: [usize;8] = [21,22,23,24,25,26,27,28];
         let pawn_promotion_rank_black: [usize;8] = [91,92,93,94,95,96,97,98];
         if let Cell::Piece(piece) = position.board[square] {
@@ -110,7 +107,6 @@
     }
 }
     }
-    //2moveflag muss noch ein int sein der in flags für 2move steht
     fn en_passant_moves(position: &Position, moves: &mut Vec<Move>, square: usize, last_move: Move) {
         if last_move.is_null() {
             return;

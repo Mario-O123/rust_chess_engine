@@ -1,7 +1,4 @@
 //Knight/Bishop/Queen/King
-//hier parameter square color offsets und der vector 
-
-
 
 fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i8] ) {
      for offset in piece_offsets {
