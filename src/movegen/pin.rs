@@ -61,6 +61,7 @@ pub fn is_move_legal_if_pinned(pin: &Pin, from: usize, to: usize) -> bool {
         return true;
     }
 
+
     let mut sq = (pin.king_square as i32 + pin.direction as i32) as usize;
     while is_on_board(sq) {
         if sq == to {
@@ -72,6 +73,9 @@ pub fn is_move_legal_if_pinned(pin: &Pin, from: usize, to: usize) -> bool {
         sq = (sq as i32 + pin.direction as i32) as usize;
     }
     false
+
+ 
+
 }
 
 //Helperfunction: checks if square on pin-line
