@@ -8,9 +8,9 @@ use crate::movegen::Move;
 use crate::movegen::attack::is_square_attacked;
 
 
- pub fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i32] ) {
+ pub fn gen_sliding_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i8] ) {
      for offset in piece_offsets {
-                    let mut target = square as i32 + offset;
+                    let mut target = square as i32 + *offset as i32;
 
                     if target < 0 {
                         continue;
@@ -31,25 +31,25 @@ use crate::movegen::attack::is_square_attacked;
                             break;
                         }
                     }
-                
+
             }
 }
 
 //maybe could save lines here by checking for if not offboard instead of Cell::Empty and Piece
-pub fn gen_jumping_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i32] ) {
+pub fn gen_jumping_moves(position: &Position, moves: &mut Vec<Move> , square: usize , piece_offsets: &[i8] ) {
     for offset in piece_offsets {
-                if (square as i32 + offset) < 0 {
+                if (square as i32 + *offset as i32) < 0 {
 
                     continue;
                 }
-                if position.board[(square as i32 + offset) as usize] == Cell::Empty {
+                if position.board[(square as i32 + *offset as i32) as usize] == Cell::Empty {
                     //push move to vector
-                    moves.push(Move::new(square as usize, (square as i32+ offset) as usize));
+                    moves.push(Move::new(square as usize, (square as i32 + *offset as i32) as usize));
 
-                }else if matches!((position.board[(square as i32+ offset)as usize ], position.board[square]), (Cell::Piece(jumper_target), Cell::Piece(jumper_square)) 
+                }else if matches!((position.board[(square as i32 + *offset as i32)as usize ], position.board[square]), (Cell::Piece(jumper_target), Cell::Piece(jumper_square)) 
                          if jumper_target.color == jumper_square.color.opposite()) {
                         //push move to vector with capture flag
-                        moves.push(Move::new(square as usize, (square as i32 + offset) as usize));
+                        moves.push(Move::new(square as usize, (square as i32 + *offset as i32) as usize));
 
                 }
                 else {

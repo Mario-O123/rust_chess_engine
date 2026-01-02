@@ -2,7 +2,7 @@
 
 use crate::position::PieceKind;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move {
     pub from: u8, 
     pub to: u8,

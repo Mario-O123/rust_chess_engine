@@ -2,8 +2,7 @@
 
 use crate::position::{Position, Cell, PieceKind};
 use crate::board::mailbox120::{
-    BOARD_SIZE, is_on_board, KNIGHT_DIRECTIONS, 
-    BISHOP_DIRECTIONS, ROOK_DIRECTIONS, KING_DIRECTIONS,
+    BISHOP_DIRECTIONS, BOARD_SIZE, KING_DIRECTIONS, KNIGHT_DIRECTIONS, QUEEN_DIRECTIONS, ROOK_DIRECTIONS, is_on_board
 };
 use crate::movegen::{Move, piece, pawn};
 
@@ -29,7 +28,7 @@ pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
             }PieceKind::Rook => {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &ROOK_DIRECTIONS);
             }PieceKind::Queen => {
-                piece::gen_sliding_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
+                piece::gen_sliding_moves(position, &mut move_list, square120, &QUEEN_DIRECTIONS);
             }PieceKind::King => {
                 piece::gen_jumping_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
                 piece::gen_castling_moves(position, &mut move_list, square120);
