@@ -5,7 +5,7 @@
 // % not possible to cast it to usize.
 
 use crate::board::mailbox120::{
-    BISHOP_DIRECTIONS, KNIGHT_DIRECTIONS, ROOK_DIRECTIONS, is_on_board,
+    BISHOP_DIRECTIONS, KNIGHT_DIRECTIONS, ROOK_DIRECTIONS, is_on_board, KING_DIRECTIONS
 };
 use crate::position::{Cell, Color, PieceKind, Position};
 
@@ -130,8 +130,6 @@ fn check_sliding_attack(
 }
 
 fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> bool {
-    const KING_DIRECTIONS: [i8; 8] = [1, -1, 9, -9, 10, -10, 11, -11];
-
     for &offset in &KING_DIRECTIONS {
         let attacker_square = square120 as i32 + offset as i32;
         if attacker_square < 0 {
