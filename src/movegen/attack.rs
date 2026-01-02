@@ -152,6 +152,9 @@ fn attacked_by_king(position: &Position, square120: usize, by_color: Color) -> b
     false
 }
 
+
+
+
 pub fn find_king(position: &Position, color: Color) -> Option<usize> {
     for square120 in 21..=98 {
         if !is_on_board(square120) {

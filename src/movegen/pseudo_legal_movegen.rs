@@ -5,7 +5,7 @@ use crate::board::mailbox120::{
     BOARD_SIZE, is_on_board, KNIGHT_DIRECTIONS, 
     BISHOP_DIRECTIONS, ROOK_DIRECTIONS, KING_DIRECTIONS,
 };
-use crate::movegen::{Move};
+use crate::movegen::{Move, piece, pawn};
 
 
 pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
@@ -23,7 +23,7 @@ pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
             PieceKind::Knight => { 
                 piece::gen_jumping_moves(position, &mut move_list, square120, &KNIGHT_DIRECTIONS);
             }PieceKind::Bishop => {
-                gen_sliding_moves(position, &mut move_list, square120, &BISHOP_DIRECTIONS);
+                piece::gen_sliding_moves(position, &mut move_list, square120, &BISHOP_DIRECTIONS);
             }PieceKind::Pawn => {
                 pawn::gen_pawn_moves(position, &mut move_list, square120);
             }PieceKind::Rook => {
