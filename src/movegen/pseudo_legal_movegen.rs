@@ -21,18 +21,18 @@ pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
         match piece.kind {
             PieceKind::Knight => { 
                 piece::gen_jumping_moves(position, &mut move_list, square120, &KNIGHT_DIRECTIONS);
-            }PieceKind::Bishop => {
+            }, PieceKind::Bishop => {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &BISHOP_DIRECTIONS);
-            }PieceKind::Pawn => {
+            }, PieceKind::Pawn => {
                 pawn::gen_pawn_moves(position, &mut move_list, square120);
-            }PieceKind::Rook => {
+            }, PieceKind::Rook => {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &ROOK_DIRECTIONS);
-            }PieceKind::Queen => {
+            }, PieceKind::Queen => {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &QUEEN_DIRECTIONS);
-            }PieceKind::King => {
+            }, PieceKind::King => {
                 piece::gen_jumping_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
                 piece::gen_castling_moves(position, &mut move_list, square120);
-            }
+            },
         }
     }
     move_list
