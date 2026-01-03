@@ -692,6 +692,27 @@ mod tests {
         pos.move_counter = 40;
         assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/8 w - - 6 40");
     }
+
+    #[test]
+    fn fen_roundtrip_around_startposition_is_safe() {
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let pos = Position::from_fen(fen).unwrap();
+        assert_eq!(pos.to_fen(), fen);
+    }
+
+    #[test]
+    fn fen_roundtrip_canoncicalizes_castling_order() {
+        let fen = "8/8/8/8/8/8/8/4K2k w qK - 0 1";
+        let pos = Position::from_fen(fen).unwrap();
+
+        assert_eq!(pos.to_fen(), "8/8/8/8/8/8/8/4K2k w Kq - 0 1")
+    }
+
+    #[test]
+    fn fen_rejects_duplicate_castling_chars() {
+        let fen = "8/8/8/8/8/8/8/4K2k w KK - 0 1";
+        assert!(Position::from_fen(fen).is_err());
+    }
     
 
 
