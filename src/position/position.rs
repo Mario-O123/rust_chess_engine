@@ -1,5 +1,6 @@
-use crate::board::mailbox120::BOARD_SIZE as BOARD120;
+pub use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
+use crate::movegen::pseudo_legal_movegen::Move;
 use once_cell::sync::Lazy;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -150,6 +151,7 @@ pub struct Position {
     pub move_counter: u16,
     pub king_sq: [u8; 2],
     pub piece_counter: [u8; 12],
+    pub last_move: Option<Move>,
 }
 
 impl Position {
@@ -164,6 +166,7 @@ impl Position {
             move_counter: 1,
             king_sq: [0; 2],
             piece_counter: [0; 12],
+            last_move: None,
         }
     }
 
