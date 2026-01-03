@@ -6,10 +6,10 @@ use crate::movegen::{Move, PromotionPiece};
 pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize) {
         // might want to change magic square index to more logical square identificators
 
-        let pawn_starts_white: [usize;8] = [81,82,83,84,85,86,87,88]; //alle start index of white pawns
-        let pawn_starts_black: [usize;8] = [31,32,33,34,35,36,37,38]; //all start index of black pawns
-        let pawn_promotion_rank_white: [usize;8] = [21,22,23,24,25,26,27,28]; //all index of squares where white pawn can promote
-        let pawn_promotion_rank_black: [usize;8] = [91,92,93,94,95,96,97,98]; // same but with black pawns
+        let pawn_starts_white: [usize;8] = [31,32,33,34,35,36,37,38]; //alle start index of white pawns
+        let pawn_starts_black: [usize;8] = [381,82,83,84,85,86,87,88]; //all start index of black pawns 
+        let pawn_promotion_rank_white: [usize;8] = [91,92,93,94,95,96,97,98]; //all index of squares where white pawn can promote 
+        let pawn_promotion_rank_black: [usize;8] = [21,22,23,24,25,26,27,28]; // same but with black pawns
         if let Cell::Piece(piece) = position.board[square] {
         match piece.color {
         Color::White => {
@@ -99,7 +99,7 @@ pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize)
     }
 
     //
-pub fn en_passant_moves(position: &Position, moves: &mut Vec<Move>, square: usize  /* , last_move: Move */) {
+pub fn en_passant_moves(position: &Position, moves: &mut Vec<Move>, square: usize ) {
         
         if position.en_passant_square.is_some() {
             if let Some(en_passant_to) = position.en_passant_square {

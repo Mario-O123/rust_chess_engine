@@ -25,12 +25,15 @@ pub fn generate_pseudo_legal_moves(position : &Position) -> Vec<Move> {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &BISHOP_DIRECTIONS);
             }, PieceKind::Pawn => {
                 pawn::gen_pawn_moves(position, &mut move_list, square120);
-            }, PieceKind::Rook => {
+
+                pawn::en_passant_moves(position, &mut move_list, square120);
+            },PieceKind::Rook => {
+
                 piece::gen_sliding_moves(position, &mut move_list, square120, &ROOK_DIRECTIONS);
             }, PieceKind::Queen => {
                 piece::gen_sliding_moves(position, &mut move_list, square120, &QUEEN_DIRECTIONS);
             }, PieceKind::King => {
-                piece::gen_jumping_moves(position, &mut move_list, square120, &KING_DIRECTIONS);
+                piece::gen_jumping_moves(position, &mut move_list, square120, &QUEEN_DIRECTIONS);
                 piece::gen_castling_moves(position, &mut move_list, square120);
             },
         }
