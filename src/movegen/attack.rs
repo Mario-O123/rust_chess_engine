@@ -8,7 +8,8 @@ use crate::board::mailbox120::{
     BISHOP_DIRECTIONS, KNIGHT_DIRECTIONS, QUEEN_DIRECTIONS as KING_QUEEN_DIRECTIONS,
     ROOK_DIRECTIONS, is_on_board,
 };
-use crate::position::{Cell, Color, PieceKind, Position};
+use crate::position::position::PieceKind;
+use crate::position::{Cell, Color, Position};
 
 //main function, detects if given square is attacked
 pub fn is_square_attacked(position: &Position, square120: usize, by_color: Color) -> bool {

@@ -1,6 +1,6 @@
 //Move structure + Flags
 
-use crate::position::PieceKind;
+use crate::position::position::PieceKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move {
