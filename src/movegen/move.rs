@@ -4,7 +4,7 @@ use crate::position::PieceKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move {
-    pub from: u8, 
+    pub from: u8,
     pub to: u8,
     pub move_type: MoveType,
     pub promotion: Option<PromotionPiece>,
@@ -19,15 +19,14 @@ pub enum PromotionPiece {
 }
 
 //Move Types
-#[derive(Debug, Clone, Copy, PartialEq, Eq,)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum MoveType {
-    Normal = 0, // 0b00 Normal moves
+    Normal = 0,    // 0b00 Normal moves
     Promotion = 1, //0b01 Pawn Promotion
     EnPassant = 2, // 0b10 En Passent capture
-    Castling = 3, // 0b11 Castling 
+    Castling = 3,  // 0b11 Castling
 }
-
 
 impl PromotionPiece {
     //convert to piecekind
@@ -61,11 +60,13 @@ impl PromotionPiece {
     }
 }
 
-
 impl Move {
     //creates NULL-Move
     pub const NULL: Self = Self {
-        from: 0, to: 0, move_type: MoveType::Normal, promotion: None
+        from: 0,
+        to: 0,
+        move_type: MoveType::Normal,
+        promotion: None,
     };
 
     #[inline]
@@ -74,12 +75,12 @@ impl Move {
     }
 
     #[inline]
-    pub fn from_sq (&self) -> usize {
+    pub fn from_sq(&self) -> usize {
         self.from as usize
     }
 
     #[inline]
-    pub fn to_sq (&self) -> usize {
+    pub fn to_sq(&self) -> usize {
         self.to as usize
     }
 
@@ -88,11 +89,10 @@ impl Move {
         self.move_type
     }
 
-
     //creates normal move
     pub fn new(from: usize, to: usize) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
-        
+
         Self {
             from: from as u8,
             to: to as u8,
@@ -100,11 +100,11 @@ impl Move {
             promotion: None,
         }
     }
-    
+
     //creates pawn promotion
     pub fn new_promotion(from: usize, to: usize, promotion: PromotionPiece) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
-                
+
         Move {
             from: from as u8,
             to: to as u8,
@@ -112,8 +112,8 @@ impl Move {
             promotion: Some(promotion),
         }
     }
-    
-    // creates new en passant 
+
+    // creates new en passant
     pub fn new_en_passant(from: usize, to: usize) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
 
@@ -136,8 +136,6 @@ impl Move {
         }
     }
 
-    
-    
     //gets the promotion
     pub fn promotion_piece(&self) -> Option<PromotionPiece> {
         if self.move_type() != MoveType::Promotion {
@@ -147,7 +145,6 @@ impl Move {
         self.promotion
     }
 
-    
     // Checks if this is a promotion
     #[inline]
     pub fn is_promotion(&self) -> bool {
@@ -220,5 +217,3 @@ impl std::fmt::Display for Move {
         write!(f, "{}", self.to_uci())
     }
 }
-
-
