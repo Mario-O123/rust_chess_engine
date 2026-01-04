@@ -6,7 +6,8 @@ use crate::board::mailbox120::{
 };
 use crate::movegen::Move;
 use crate::movegen::{pawn, piece};
-use crate::position::{Cell, PieceKind, Position};
+use crate::position::position::PieceKind;
+use crate::position::{Cell, Position};
 
 pub fn generate_pseudo_legal_moves(position: &Position) -> Vec<Move> {
     let mut move_list = Vec::new();

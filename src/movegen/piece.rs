@@ -4,7 +4,8 @@
 
 use crate::movegen::Move;
 use crate::movegen::attack::is_square_attacked;
-use crate::position::{Cell, Color, Piece, PieceKind, Position};
+use crate::position::position::PieceKind;
+use crate::position::{Cell, Color, Piece, Position};
 
 pub fn gen_sliding_moves(
     position: &Position,
@@ -24,7 +25,7 @@ pub fn gen_sliding_moves(
                 // push move
                 moves.push(Move::new(square as usize, target as usize));
                 target += *offset as i32;
-            } else if matches!((position.board[target], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square))
+            } else if matches!((position.board[target_usize], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square))
                                  if slider_target.color == slider_square.color.opposite())
             {
                 //push move with capture
@@ -150,5 +151,7 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                 moves.push(Move::new_castling(king_from, 97));
             }
         }
+
+        _ => {}
     }
 }
