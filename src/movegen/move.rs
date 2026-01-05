@@ -26,6 +26,7 @@ pub enum MoveType {
     Promotion = 1, //0b01 Pawn Promotion
     EnPassant = 2, // 0b10 En Passent capture
     Castling = 3,  // 0b11 Castling
+    DoublePawnPush = 4
 }
 
 impl PromotionPiece {
@@ -125,6 +126,18 @@ impl Move {
         }
     }
 
+    pub fn new_pawn_double(from: usize, to: usize) -> Self {
+        debug_assert!(from < 120 && to < 120, "Out of bounds");
+        
+        Self {
+            from: from as u8,
+            to: to as u8,
+            move_type: MoveType::DoublePawnPush, //new type
+            promotion: None,
+        }
+    }
+    
+
     pub fn new_castling(from: usize, to: usize) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
 
@@ -159,6 +172,10 @@ impl Move {
     #[inline]
     pub fn is_castling(&self) -> bool {
         self.move_type() == MoveType::Castling
+    }
+    #[inline]
+    pub fn is_double_pawn_push(&self) -> bool {
+        self.move_type == MoveType::DoublePawnPush
     }
 
     //converst Move to UCI format
