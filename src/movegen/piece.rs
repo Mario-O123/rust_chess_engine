@@ -13,28 +13,35 @@ pub fn gen_sliding_moves(
     square: usize,
     piece_offsets: &[i8],
 ) {
+    let Cell::Piece(moving_piece) = position.board[square] else {
+        return;
+    }; // early return added 
+
     for offset in piece_offsets {
         let mut target = square as i32 + *offset as i32;
 
         if target < 0 {
             continue;
         }
-        while target >= 0 && target < 120 && position.board[target as usize] != Cell::Offboard {
-            let target_usize = target as usize;
-            if position.board[target as usize] == Cell::Empty {
-                // push move
-                moves.push(Move::new(square as usize, target as usize));
-                target += *offset as i32;
-            } else if matches!((position.board[target_usize], position.board[square]), (Cell::Piece(slider_target), Cell::Piece(slider_square))
-                                 if slider_target.color == slider_square.color.opposite())
-            {
-                //push move with capture
-                moves.push(Move::new(square as usize, target as usize));
 
-                break;
-            } else {
+        while target >= 0 && target < 120  {
+            let target_usize = target as usize;
+
+           match position.board[target_usize] {
+            Cell::Offboard => break,
+
+            Cell::Empty => {
+                moves.push(Move::new(square, target_usize));
+                target += *offset as i32;
+            }
+
+            Cell::Piece(target_piece) => {
+                if target_piece.color != moving_piece.color {
+                    moves.push(Move::new(square, target_usize));
+                }
                 break;
             }
+           }
         }
     }
 }
@@ -46,25 +53,32 @@ pub fn gen_jumping_moves(
     square: usize,
     piece_offsets: &[i8],
 ) {
+    let Cell::Piece(moving_piece) = position.board[square] else {
+        return;
+    };
+
+
     for offset in piece_offsets {
-        if (square as i32 + *offset as i32) < 0 {
+        let target = square as i32 + *offset as i32;
+
+        if target < 0 || target >= 120 {
             continue;
         }
-        if position.board[(square as i32 + *offset as i32) as usize] == Cell::Empty {
-            //push move to vector
-            moves.push(Move::new(
-                square as usize,
-                (square as i32 + *offset as i32) as usize,
-            ));
-        } else if matches!((position.board[(square as i32 + *offset as i32)as usize ], position.board[square]), (Cell::Piece(jumper_target), Cell::Piece(jumper_square))
-            if jumper_target.color == jumper_square.color.opposite())
-        {
-            //push move to vector with capture flag
-            moves.push(Move::new(
-                square as usize,
-                (square as i32 + *offset as i32) as usize,
-            ));
-        } else {
+
+        let target_usize = target as usize;
+
+        match position.board[target_usize] {
+            Cell::Offboard => continue,
+
+            Cell::Empty => {
+                moves.push(Move::new(square, target_usize));
+            }
+
+            Cell::Piece(target_piece) => {
+                if target_piece.color != moving_piece.color {
+                    moves.push(Move::new(square, target_usize));
+                }
+            }
         }
     }
 }
@@ -90,9 +104,9 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                         color: Color::White
                     })
                 )
-                && is_square_attacked(position, king_from, Color::Black) == false
-                && is_square_attacked(position, 24, Color::Black) == false
-                && is_square_attacked(position, 23, Color::Black) == false
+                && !is_square_attacked(position, king_from, Color::Black)
+                && !is_square_attacked(position, 24, Color::Black)
+                && !is_square_attacked(position, 23, Color::Black)
             {
                 moves.push(Move::new_castling(king_from, 23));
             }
@@ -106,9 +120,9 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                         color: Color::White
                     })
                 )
-                && is_square_attacked(position, king_from, Color::Black) == false
-                && is_square_attacked(position, 26, Color::Black) == false
-                && is_square_attacked(position, 27, Color::Black) == false
+                && !is_square_attacked(position, king_from, Color::Black)
+                && !is_square_attacked(position, 26, Color::Black)
+                && !is_square_attacked(position, 27, Color::Black)
             {
                 moves.push(Move::new_castling(king_from, 27));
             }
@@ -128,14 +142,14 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                         color: Color::Black
                     })
                 )
-                && is_square_attacked(position, king_from, Color::White) == false
-                && is_square_attacked(position, 94, Color::White) == false
-                && is_square_attacked(position, 93, Color::White) == false
+                && !is_square_attacked(position, king_from, Color::White)
+                && !is_square_attacked(position, 94, Color::White)
+                && !is_square_attacked(position, 93, Color::White) 
             {
                 moves.push(Move::new_castling(king_from, 93));
             }
             if position.castling_rights & 0b0100 != 0
-                && position.board[26] == Cell::Empty
+                && position.board[96] == Cell::Empty
                 && position.board[97] == Cell::Empty
                 && matches!(
                     position.board[98],
@@ -144,9 +158,9 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                         color: Color::Black
                     })
                 )
-                && is_square_attacked(position, king_from, Color::White) == false
-                && is_square_attacked(position, 96, Color::White) == false
-                && is_square_attacked(position, 97, Color::White) == false
+                && !is_square_attacked(position, king_from, Color::White)
+                && !is_square_attacked(position, 96, Color::White) 
+                && !is_square_attacked(position, 97, Color::White) 
             {
                 moves.push(Move::new_castling(king_from, 97));
             }
