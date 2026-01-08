@@ -404,7 +404,8 @@ mod make_move_tests {
         assert_eq!(pos.move_counter, 1);
 
     }
-    
+
+    #[test]    
     fn double_pawn_push_sets_en_passant_square() {
         let mut pos = Position::starting_position();
 
@@ -423,6 +424,7 @@ mod make_move_tests {
         assert_eq!(pos.move_counter, 1);
     }
 
+    #[test]
     fn en_passant_capture_removes_captured_pawn() {
         //create situation where White can caüture and go to en_passant_square
         let mut pos = with_kings(Position::empty());
@@ -447,6 +449,75 @@ mod make_move_tests {
         assert_eq!(pos.half_move_clock, 0);
         assert_eq!(pos.player_to_move, Color::Black);
     }
+
+    #[test]
+    fn promotion_replaces_pawn_with_promoted_piece() {
+        let mut pos = with_kings(Position::empty());
+
+        put(&mut pos, "a7", Color::White, PieceKind::Pawn);
+        pos.player_to_move = Color::White;
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mv = Move::new_promotion(sq_str("a7"), sq_str("a8"), PromotionPiece::Queen);
+        pos.make_move(mv);
+
+        assert_eq!(pos.board[sq_str("a7")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("a8")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::Queen}));
+
+        assert_eq!(pos.half_move_clock, 0);
+        assert_eq!(pos.player_to_move, Color::Black);
+    }
+
+    #[test]
+    fn castling_kingside_moves_rook_and_clears_rights() {
+        let mut pos = with_kings(Position::empty());
+
+        //White rook at h1, f1 and g1 are emtpy
+        put(&mut pos, "h1", Color::White, PieceKind::Rook);
+        pos.castling_rights = WK | WQ;
+        pos.player_to_move = Color::White;
+
+        //check if make_move updates rights correctly after the king castles
+
+        let mv = Move::new_castling(sq_str("e1"), sq_str("g1"));
+        pos.make_move(mv);
+
+        assert_eq!(pos.board[sq_str("e1")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("h1")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("g1")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::King}));
+        assert_eq!(pos.board[sq_str("f1")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::Rook}));
+
+        assert_eq!(pos.castling_rights & (WK | WQ), 0);
+        assert_eq!(pos.king_sq[Color::White.idx()] as usize, sq_str("g1"));
+        assert_eq!(pos.player_to_move, Color::Black);
+    }
+    
+    #[test]
+    fn rook_move_clears_correct_castling_rights() {
+        let mut pos = with_kings(Position::empty());
+
+        //White rook a1 moves -> should only clear WQ
+        put(&mut pos, "a1", Color::White, PieceKind::Rook);
+        pos.castling_rights = WK | WQ;
+        pos.player_to_move = Color::White;
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mv = Move::new(sq_str("a1"), sq_str("a2"));
+        pos.make_move(mv);
+
+        assert_eq!(pos.castling_rights & WQ, 0);
+        assert_ne!(pos.castling_rights & WK, 0);
+    }
+
+
+
+
 
 
 
