@@ -1,5 +1,5 @@
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
-use crate::movegen::pseudo_legal_movegen::Move;
+use crate::movegen::Move;
 use crate::position::{Cell, Color, Piece, Position, Square};
 
 // Order vor king_sq: WK, BK
