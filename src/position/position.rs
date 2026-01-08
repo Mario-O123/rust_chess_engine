@@ -349,4 +349,115 @@ impl Position {
     fn bitmask(to_check: u8, mask: u8) -> bool {
         to_check & mask != 0
     }
+
+    pub fn make_move(&mut self, mv: Move) {
+        //yet to be implemented
+    }
 }
+
+#[cfg(test)]
+mod make_move_tests {
+    use super::*;
+    use crate::movegen::{Move, PromotionPiece};
+
+    const WK: u8 = 0b0001;
+    const WQ: u8 = 0b0010;
+    const BK: u8 = 0b0100;
+    const BQ: u8 = 0b1000;
+
+    //helpers for testing
+    
+    //turns chess field like e2 into our mailbox120 index
+    fn sq_str(s: &str) -> usize {
+        crate::board::conversion::square120_from_string(s).unwrap()
+    }
+
+    //puts a specific piece on a field
+    fn put(pos: &mut Position, sq: &str, color: Color, kind: PieceKind) {
+        pos.board[sq_str(sq)] = Cell::Piece(Piece {color, kind});
+    }
+
+    //builds a specified safe test position
+    fn with_kings(mut pos: Position) -> Position {
+        put(&mut pos, "e1", Color::White, PieceKind::King);
+        put(&mut pos, "e8", Color::Black, PieceKind::King);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+        pos
+    }
+
+    #[test]
+    fn normal_move_updates_board_turn_and_halfmove() {
+        let mut pos =  Position::starting_position();
+        
+        let mv = Move::new(sq_str("g1"), sq_str("f3"));
+        pos.make_move(mv);
+
+        assert_eq!(pos.board[sq_str("g1")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("f3")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::Knight}));
+
+        assert_eq!(pos.player_to_move, Color::Black);
+        assert_eq!(pos.en_passant_square, None);
+        assert_eq!(pos.half_move_clock, 1);
+        assert_eq!(pos.move_counter, 1);
+
+    }
+    
+    fn double_pawn_push_sets_en_passant_square() {
+        let mut pos = Position::starting_position();
+
+        let mv = Move::new_pawn_double(sq_str("e2"), sq_str("e4"));
+        pos.make_move(mv);
+
+        assert_eq!(pos.board[sq_str("e2")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("e4")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::Pawn}));
+
+        //EP target it e3
+        let e3 = Square::new(sq_str("e3") as u8);
+        assert_eq!(pos.en_passant_square, Some(e3));
+
+        assert_eq!(pos.half_move_clock, 0); //pawn move resets
+        assert_eq!(pos.player_to_move, Color::Black);
+        assert_eq!(pos.move_counter, 1);
+    }
+
+    fn en_passant_capture_removes_captured_pawn() {
+        //create situation where White can caüture and go to en_passant_square
+        let mut pos = with_kings(Position::empty());
+        put(&mut pos, "e5", Color::White, PieceKind::Pawn);
+        put(&mut pos, "d5", Color::Black, PieceKind::Pawn);
+        pos.en_passant_square = Some(Square::new(sq_str("d6") as u8));
+        pos.player_to_move = Color::White;
+
+        //refresh derived data
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mv = Move::new_en_passant(sq_str("e5"), sq_str("d6"));
+        pos.make_move(mv);
+
+        assert_eq!(pos.board[sq_str("e5")], Cell::Empty);
+        assert_eq!(pos.board[sq_str("d6")], Cell::Piece(Piece {color: Color::White, kind: PieceKind::Pawn}));
+        assert_eq!(pos.board[sq_str("d5")], Cell::Empty);
+
+        assert_eq!(pos.en_passant_square, None);
+        assert_eq!(pos.half_move_clock, 0);
+        assert_eq!(pos.player_to_move, Color::Black);
+    }
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
