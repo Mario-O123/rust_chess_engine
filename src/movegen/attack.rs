@@ -9,10 +9,12 @@ use crate::board::mailbox120::{
     ROOK_DIRECTIONS, is_on_board,
 };
 use crate::position::position::PieceKind;
-use crate::position::{Cell, Color, Position};
+use crate::position::{Cell, Color, Position, Square};
 
 //main function, detects if given square is attacked
-pub fn is_square_attacked(position: &Position, square120: usize, by_color: Color) -> bool {
+pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) -> bool {
+    let square120 = square.as_usize();
+    debug_assert!(is_on_board(square120));
     attacked_by_pawn(position, square120, by_color)
         || attacked_by_knight(position, square120, by_color)
         || attacked_by_sliders(position, square120, by_color)
@@ -20,7 +22,8 @@ pub fn is_square_attacked(position: &Position, square120: usize, by_color: Color
 }
 
 pub fn is_in_check(position: &Position, color: Color) -> bool {
-    let king_square = position.king_sq[color.idx()] as usize;
+    let king_sq = position.king_sq[color.idx()] as usize;
+    let king_square = Square::new(king_sq as u8);
     let enemy = color.opposite();
     is_square_attacked(position, king_square, enemy)
 }
@@ -77,14 +80,14 @@ fn attacked_by_knight(position: &Position, square120: usize, by_color: Color) ->
 fn attacked_by_sliders(position: &Position, square120: usize, by_color: Color) -> bool {
     //checks ROOK
     for &direction in &ROOK_DIRECTIONS {
-        if check_sliding_attack(position, square120, direction, &by_color, true) {
+        if check_sliding_attack(position, square120, direction, by_color, true) {
             return true;
         }
     }
 
     //check Bishop
     for &direction in &BISHOP_DIRECTIONS {
-        if check_sliding_attack(position, square120, direction, &by_color, false) {
+        if check_sliding_attack(position, square120, direction, by_color, false) {
             return true;
         }
     }
@@ -97,21 +100,28 @@ fn check_sliding_attack(
     position: &Position,
     square120: usize,
     direction: i8,
-    by_color: &Color,
+    by_color: Color,
     is_rook_direction: bool, // true -> ROOK/QUEEN, false -> BISHOP/QUEEN
 ) -> bool {
-    let mut current = (square120 as i32 + direction as i32) as usize;
+    let dir_32 = direction as i32;
+    let mut current = (square120 as i32 + dir_32);
+
 
     loop {
         //while(true) till break or return
 
-        if !is_on_board(current) {
+        if current < 0 {
+            break;
+        }
+        let current_usize = current as usize;
+
+        if !is_on_board(current_usize) {
             break;
         }
 
-        if let Cell::Piece(piece) = &position.board[current] {
+        if let Cell::Piece(piece) = &position.board[current_usize] {
             //get out wrong colors
-            if piece.color != *by_color {
+            if piece.color != by_color {
                 return false;
             }
 
@@ -126,7 +136,7 @@ fn check_sliding_attack(
         }
 
         //next
-        current = (current as i32 + direction as i32) as usize;
+        current += dir_32;
     }
     false
 }
@@ -211,7 +221,7 @@ pub fn attackers_of_square(position: &Position, square120: usize, by_color: Colo
     //Slider ROOK;BISHOP;QUEEN
     for &direction in &BISHOP_DIRECTIONS {
         if let Some(attacker) =
-            find_sliding_attacker(position, square120, direction, &by_color, false)
+            find_sliding_attacker(position, square120, direction, by_color, false)
         {
             attackers.push(attacker);
         }
@@ -219,7 +229,7 @@ pub fn attackers_of_square(position: &Position, square120: usize, by_color: Colo
 
     for &direction in &ROOK_DIRECTIONS {
         if let Some(attacker) =
-            find_sliding_attacker(position, square120, direction, &by_color, true)
+            find_sliding_attacker(position, square120, direction, by_color, true)
         {
             attackers.push(attacker);
         }
@@ -251,21 +261,28 @@ fn find_sliding_attacker(
     position: &Position,
     square120: usize,
     direction: i8,
-    by_color: &Color,
+    by_color: Color,
     is_rook_direction: bool, // true -> ROOK/QUEEN, false -> BISHOP/QUEEN
 ) -> Option<usize> {
-    let mut current = (square120 as i32 + direction as i32) as usize;
+
+    let dir_32 = direction as i32;
+    let mut current = square120 as i32 + dir_32;
 
     loop {
         //while(true) till break or return
 
-        if !is_on_board(current) {
+        if current < 0 {
+            break;
+        }
+        let current_usize = current as usize;
+
+        if !is_on_board(current_usize) {
             break;
         }
 
-        if let Cell::Piece(piece) = &position.board[current] {
+        if let Cell::Piece(piece) = &position.board[current_usize] {
             //get out wrong colors
-            if piece.color != *by_color {
+            if piece.color != by_color {
                 return None;
             }
 
@@ -278,11 +295,11 @@ fn find_sliding_attacker(
                 _ => false,
             };
 
-            return if is_attacker { Some(current) } else { None };
+            return if is_attacker { Some(current_usize) } else { None };
         }
 
         //next
-        current = (current as i32 + direction as i32) as usize;
+        current +=dir_32;
     }
 
     None
