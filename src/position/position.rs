@@ -351,8 +351,170 @@ impl Position {
     }
 
     pub fn make_move(&mut self, mv: Move) {
-        //yet to be implemented
+
+    const WK: u8 = 0b0001;
+    const WQ: u8 = 0b0010;
+    const BK: u8 = 0b0100;
+    const BQ: u8 = 0b1000;
+
+    //squares useful for handling castling rights
+    const A1: usize = 21;
+    const H1: usize = 28;
+    const A8: usize = 91;
+    const H8: usize = 98;
+
+    let from = mv.from_sq();
+    let to = mv.to_sq();
+
+    let moving_piece = match self.board[from] {
+        Cell::Piece(p) => p,
+        _ => {debug_assert!(false, "make_move: from-square has no piece"); return;}
+    };
+
+    //EP square is only valid for the immediate newxt Move
+    self.en_passant_square = None;
+
+    //EP square gets deleted in with every turn, only set when there is a DoublePawnPush
+    let mut did_capture = false;
+    let mut captured_piece: Option<Piece> = None;
+
+    //En passant
+    if mv.is_en_passant() {
+        //captured square becomes empty
+        let captured_sq = if moving_piece.color == Color::White {
+            debug_assert!(to >= 10, "en passant: to too small for white capture square");
+            to - 10
+        } else {
+            debug_assert!(to + 10 < 120, "en passant: to too large for black capture square");
+            to + 10
+        };
+
+        if let Cell::Piece(p) = self.board[captured_sq] {
+            captured_piece = Some(p);
+        }
+        self.board[captured_sq] = Cell::Empty;
+        did_capture = true;
+
+        self.board[from] = Cell::Empty;
+        self.board[to] = Cell::Piece(moving_piece);
+
     }
+    //castling
+    else if mv.is_castling() {
+        //king move
+        self.board[from] = Cell::Empty;
+        self.board[to] = Cell::Piece(moving_piece);
+
+        //rook move with distance +/-2
+        let king_shift = to as i32 - from as i32;
+        if king_shift == 2 {
+            //kingside
+            let rook_from = from + 3;
+            let rook_to = from + 1;
+            self.board[rook_to] = self.board[rook_from];
+            self.board[rook_from] = Cell::Empty;
+        } else if king_shift == -2 {
+            //queenside
+            let rook_from = from - 4;
+            let rook_to = from - 1;
+            self.board[rook_to] = self.board[rook_from];
+            self.board[rook_from] = Cell::Empty;
+        }
+    }
+    //Normal, Promotion, DoublePawnPush
+    else {
+        if let Cell::Piece(p) = self.board[to] {
+            did_capture = true;
+            captured_piece = Some(p);
+        }
+
+        //remove captured piece = normal capture
+        self.board[to] = Cell::Empty;
+        self.board[from] = Cell::Empty;
+
+        //check if it's a promotion
+        if mv.is_promotion() {
+            let promo_kind = match mv.promotion_piece() {
+                Some(p) => p.to_piece_kind(),
+                None => panic!("promotion move must carry promotion piece"), //or Queen as fallback maybe?
+            };
+
+            self.board[to] = Cell::Piece(Piece {color: moving_piece.color, kind: promo_kind});
+        } 
+        
+        else {
+            self.board[to] = Cell::Piece((moving_piece));
+        }
+
+        //if double pawn push, set the EP target
+        if mv.is_double_pawn_push() && moving_piece.kind == PieceKind::Pawn {
+            let ep_sq = if moving_piece.color == Color::White {
+                from as i32 + 10
+            } else {
+                from as i32 - 10
+            };
+            debug_assert!((0..120).contains(&ep_sq));
+            self.en_passant_square = Some(Square::new(ep_sq as u8));
+        }
+
+
+        //update castling rights: if rook moved from starting position, take right away
+        if moving_piece.kind == PieceKind::Rook {
+            match (moving_piece.color, from) {
+                (Color::White, A1) => self.castling_rights &= !WQ,
+                (Color::White, H1) => self.castling_rights &= !WK,
+                (Color::Black, A8) => self.castling_rights &= !BQ,
+                (Color::Black, H8) => self.castling_rights &= !BK,
+                _ => {}
+            }
+        }
+
+        //update castling rights: if rook on starting position was captured, take right away
+        if let Some(cap) = captured_piece {
+            if cap.kind == PieceKind::Rook {
+                match (cap.color, to) {
+                    (Color::White, A1) => self.castling_rights &= !WQ,
+                    (Color::White, H1) => self.castling_rights &= !WK,
+                    (Color::Black, A8) => self.castling_rights &= !BQ,
+                    (Color::Black, H8) => self.castling_rights &= !BK,
+                    _ => {}
+                }
+            }
+        }
+
+    }
+
+    //update king cache (relevant for normal and castling)
+    //update castling rights: if king moves, take away rights
+    if moving_piece.kind == PieceKind::King {
+        self.king_sq[moving_piece.color.idx()] = to as u8;
+
+        match moving_piece.color {
+            Color::White => self.castling_rights &=  !(WK | WQ),
+            Color::Black => self.castling_rights &= !(BK | BQ),
+        }
+    }
+
+    //update halfmove clock, fullmove counter
+        if moving_piece.kind == PieceKind::Pawn || did_capture {
+            self.half_move_clock = 0;
+        } else {
+            self.half_move_clock = self.half_move_clock.saturating_add(1);
+        }
+
+        if self.player_to_move == Color::Black {
+            self.move_counter = self.move_counter.saturating_add(1);
+        }
+
+        //side to move
+        self.player_to_move = self.player_to_move.opposite();
+
+        self.piece_counter = self.compute_piece_counter();
+        self.zobrist = self.compute_zobrist();
+    
+
+    }
+
 }
 
 #[cfg(test)]
