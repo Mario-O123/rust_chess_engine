@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-
 use crate::PieceKind;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
-use crate::movegen::{attackers_of_square, find_king, is_in_check, is_square_attacked};
+use crate::movegen::attack::is_in_check;
+use crate::movegen::legal_move_filter::filter_legal_moves;
+use crate::movegen::pseudo_legal_movegen::generate_pseudo_legal_moves;
 use crate::position::{Cell, Color, Position, State};
 
 pub enum Gamestatus {
@@ -93,76 +93,31 @@ impl Game {
         Gamestatus::Ongoing
     }
 
-    /// TO-DO: check if piece can move in between, so the King is not in check anymore
-    // for that find all squares between the Attacker (only Slider) and King and check
-    // if there is a legal move for that
+    // checks if no legal move available and if King is in check
     pub fn check_checkmate(&self) -> Gamestatus {
-        const KING_DIRECTIONS: [i8; 8] = [1, -1, 9, -9, 10, -10, 11, -11];
-        let color_in_check: Color;
+        let side = self.position.player_to_move;
+        let pseudo = generate_pseudo_legal_moves(&self.position);
+        let legal = filter_legal_moves(&self.position, &pseudo);
 
-        // checks if the king is in check and sets color_in_check
-        if is_in_check(&self.position, Color::White) {
-            color_in_check = Color::White
-        } else if is_in_check(&self.position, Color::Black) {
-            color_in_check = Color::Black
+        if legal.is_empty() && is_in_check(self.position, side) {
+            return Gamestatus::Checkmate {
+                winner: side.opposite(),
+            };
         } else {
             return Gamestatus::Ongoing;
         }
-
-        let king_in_check = find_king(&self.position, color_in_check);
-
-        let Some(king) = king_in_check else {
-            return Gamestatus::Ongoing;
-        };
-
-        // checks if it is possible to take the attacking piece(s)
-        // TO-DO check if the attacking piece is pinned
-
-        let king_attackers = attackers_of_square(&self.position, king, color_in_check.opposite());
-
-        for attacker in king_attackers {
-            if is_square_attacked(&self.position, attacker, color_in_check) {
-                return Gamestatus::Ongoing;
-            }
-        }
-
-        // checks in all directions if the king can move:
-        // checks if the adjecant squares are in check OR
-        // if the adjecant squares are occupied with pieces of king´s color
-        for offset in KING_DIRECTIONS {
-            let king_possible_move = king + offset as usize;
-
-            if king_possible_move < 0 || king_possible_move > 119 {
-                continue;
-            }
-
-            let occupied_by_own_piece =
-                if let Cell::Piece(piece) = self.position.board[king_possible_move] {
-                    if piece.color == color_in_check {
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-            if !(is_square_attacked(
-                &self.position,
-                king_possible_move,
-                color_in_check.opposite(),
-            ) || occupied_by_own_piece)
-            {
-                return Gamestatus::Ongoing;
-            }
-        }
-        Gamestatus::Checkmate {
-            winner: color_in_check.opposite(),
-        }
     }
 
-    // TO-DO: Implement
+    // checks if no legal move available and if King is NOT in check
     pub fn check_stalemate(&self) -> Gamestatus {
-        Gamestatus::Stalemate
+        let side = self.position.player_to_move;
+        let pseudo = generate_pseudo_legal_moves(&self.position);
+        let legal = filter_legal_moves(&self.position, &pseudo);
+
+        if legal.is_empty() && !is_in_check(&self.position, side) {
+            return Gamestatus::Stalemate;
+        } else {
+            return Gamestatus::Ongoing;
+        }
     }
 }
