@@ -21,3 +21,36 @@ pub fn perft(position: &Position, depth: u32) -> u64 {
 
     nodes
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth_one() {
+        let pos = Position::starting_position();
+        let legal_moves = perft(&pos, 1);
+        assert_eq!(legal_moves, 20);
+    }
+
+    #[test]
+    fn depth_two() {
+        let pos = Position::starting_position();
+        let legal_moves = perft(&pos, 2);
+        assert_eq!(legal_moves, 400);
+    }
+
+    #[test]
+    fn depth_three() {
+        let pos = Position::starting_position();
+        let legal_moves = perft(&pos, 3);
+        assert_eq!(legal_moves, 8902);
+    }
+
+    #[test]
+    fn depth_four() {
+        let pos = Position::starting_position();
+        let legal_moves = perft(&pos, 4);
+        assert_eq!(legal_moves, 197281);
+    }
+}
