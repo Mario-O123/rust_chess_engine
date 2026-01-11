@@ -26,7 +26,7 @@ pub enum MoveType {
     Promotion = 1, //0b01 Pawn Promotion
     EnPassant = 2, // 0b10 En Passent capture
     Castling = 3,  // 0b11 Castling
-    DoublePawnPush = 4
+    DoublePawnPush = 4,
 }
 
 impl PromotionPiece {
@@ -128,7 +128,7 @@ impl Move {
 
     pub fn new_pawn_double(from: usize, to: usize) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
-        
+
         Self {
             from: from as u8,
             to: to as u8,
@@ -136,7 +136,6 @@ impl Move {
             promotion: None,
         }
     }
-    
 
     pub fn new_castling(from: usize, to: usize) -> Self {
         debug_assert!(from < 120 && to < 120, "Out of bounds");
@@ -232,5 +231,122 @@ impl Move {
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_uci())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn null_move_basics() {
+        let m = Move::NULL;
+        assert!(m.is_null());
+        assert_eq!(m.to_uci(), "0000");
+        assert_eq!(format!("{}", m), "0000");
+
+        let parsed = Move::from_uci("0000").expect("should parse null move");
+        assert_eq!(parsed, Move::NULL);
+        assert!(parsed.is_null());
+    }
+
+    #[test]
+    fn promotion_move_construction_and_helpers() {
+        let m = Move::new_promotion(21, 31, PromotionPiece::Queen);
+        assert_eq!(m.move_type(), MoveType::Promotion);
+        assert!(m.is_promotion());
+        assert_eq!(m.promotion_piece(), Some(PromotionPiece::Queen));
+
+        let n = Move::new(21, 31);
+        assert_eq!(n.promotion_piece(), None);
+    }
+
+    #[test]
+    fn en_passant_construction_and_flag() {
+        let m = Move::new_en_passant(21, 31);
+        assert_eq!(m.move_type(), MoveType::EnPassant);
+        assert!(m.is_en_passant());
+        assert!(!m.is_promotion());
+        assert!(!m.is_castling());
+        assert!(!m.is_double_pawn_push());
+        assert_eq!(m.promotion_piece(), None);
+    }
+
+    #[test]
+    fn castling_construction_and_flag() {
+        let m = Move::new_castling(21, 31);
+        assert_eq!(m.move_type(), MoveType::Castling);
+        assert!(m.is_castling());
+        assert!(!m.is_promotion());
+        assert!(!m.is_en_passant());
+        assert!(!m.is_double_pawn_push());
+        assert_eq!(m.promotion_piece(), None);
+    }
+
+    #[test]
+    fn double_pawn_push_construction_and_flag() {
+        let m = Move::new_pawn_double(21, 41);
+        assert_eq!(m.move_type(), MoveType::DoublePawnPush);
+        assert!(m.is_double_pawn_push());
+        assert!(!m.is_promotion());
+        assert!(!m.is_en_passant());
+        assert!(!m.is_castling());
+        assert_eq!(m.promotion_piece(), None);
+    }
+
+    #[test]
+    fn promotion_piece_to_uci_char() {
+        assert_eq!(PromotionPiece::Knight.to_uci_char(), 'n');
+        assert_eq!(PromotionPiece::Bishop.to_uci_char(), 'b');
+        assert_eq!(PromotionPiece::Rook.to_uci_char(), 'r');
+        assert_eq!(PromotionPiece::Queen.to_uci_char(), 'q');
+    }
+
+    #[test]
+    fn from_uci_rejects_bad_lengths() {
+        assert_eq!(Move::from_uci(""), None);
+        assert_eq!(Move::from_uci("e2e"), None);
+        assert_eq!(Move::from_uci("e2e4qq"), None);
+    }
+
+    #[test]
+    fn from_uci_rejects_bad_promo_char() {
+        assert_eq!(Move::from_uci("e7e8x"), None);
+        assert_eq!(Move::from_uci("e7e8?"), None);
+    }
+
+    #[test]
+    fn from_uci_parses_normal_and_promotion_case_insensitive() {
+        // Normal
+        let m = Move::from_uci("e2e4").expect("should parse normal uci");
+        assert_eq!(m.move_type(), MoveType::Normal);
+        assert!(!m.is_promotion());
+
+        // Promotion lower
+        let p = Move::from_uci("e7e8q").expect("should parse promotion uci");
+        assert_eq!(p.move_type(), MoveType::Promotion);
+        assert_eq!(p.promotion_piece(), Some(PromotionPiece::Queen));
+
+        // Promotion upper
+        let p2 = Move::from_uci("e7e8Q").expect("should parse promotion uci uppercase");
+        assert_eq!(p2.move_type(), MoveType::Promotion);
+        assert_eq!(p2.promotion_piece(), Some(PromotionPiece::Queen));
+    }
+
+     #[test]
+    fn uci_roundtrip_normal() {
+        let original = "b1c3";
+        let m = Move::from_uci(original).unwrap();
+        let back = m.to_uci();
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn uci_roundtrip_promotion() {
+        let original = "a7a8r";
+        let m = Move::from_uci(original).unwrap();
+        assert!(m.is_promotion());
+        assert_eq!(m.promotion_piece(), Some(PromotionPiece::Rook));
+        assert_eq!(m.to_uci(), original);
     }
 }
