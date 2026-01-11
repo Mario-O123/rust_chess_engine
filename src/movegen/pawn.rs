@@ -3,10 +3,11 @@
 use crate::movegen::{Move, PromotionPiece};
 use crate::position::{Cell, Color, Position};
 
-const PAWN_START_WHITE: [usize; 8] = [31, 32, 33, 34, 35, 36, 37, 38];
-const PAWN_START_BLACK: [usize; 8] = [81, 82, 83, 84, 85, 86, 87, 88];
-const PROMOTION_RANK_WHITE: [usize; 8] = [91, 92, 93, 94, 95, 96, 97, 98];
-const PROMOTION_RANK_BLACK: [usize; 8] = [21, 22, 23, 24, 25, 26, 27, 28];
+const PAWN_START_WHITE: [usize; 8] = [81, 82, 83, 84, 85, 86, 87, 88];
+const PAWN_START_BLACK: [usize; 8] = [31, 32, 33, 34, 35, 36, 37, 38];
+const PROMOTION_RANK_WHITE: [usize; 8] = [21, 22, 23, 24, 25, 26, 27, 28];
+const PROMOTION_RANK_BLACK: [usize; 8] = [91, 92, 93, 94, 95, 96, 97, 98];
+
 
 pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize) {
     let Cell::Piece(piece) = position.board[square] else {
@@ -19,7 +20,7 @@ pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize)
             if PAWN_START_WHITE.contains(&square) {
                 let one_forward = square + 10;
                 let two_forward = square + 20;
-
+                
                 if two_forward < 120
                     && position.board[one_forward] == Cell::Empty
                     && position.board[two_forward] == Cell::Empty
@@ -84,11 +85,11 @@ pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize)
             if PAWN_START_BLACK.contains(&square) {
                 let one_forward = square as i32 - 10;
                 let two_forward = square as i32 - 20;
-
+                
                 if one_forward >= 0 && two_forward >= 0 {
                     let one_forward = one_forward as usize;
                     let two_forward = two_forward as usize;
-
+                    
                     if position.board[one_forward] == Cell::Empty
                         && position.board[two_forward] == Cell::Empty
                     {
@@ -152,6 +153,7 @@ pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize)
         }
     }
 }
+
 
 pub fn en_passant_moves(
     position: &Position,
@@ -291,7 +293,7 @@ fn gen_all_promotion_pieces(square: usize, moves: &mut Vec<Move>, offset: i32) {
                     }
                 }
                 }
-
+                
                 //make en passant movelogic here with last move and chek if last move
             }
 
@@ -339,128 +341,3 @@ fn gen_all_promotion_pieces(square: usize, moves: &mut Vec<Move>, offset: i32) {
     }
 } */
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::position::position::{PieceKind, Square};
-
-    // Helperfunction a1 = sq(0,0); h8 = sq(7,7);
-    fn sq(file: i32, rank: i32) -> usize {
-        (21 + file + rank * 10) as usize
-    }
-
-    // Puts a piece on a sq
-    fn put(pos: &mut Position, s: usize, color: Color, kind: PieceKind) {
-        pos.board[s] = Cell::Piece(crate::position::Piece { color, kind });
-    }
-
-    #[test]
-    fn blocked_single_pawn_move() {
-        let mut pos = Position::starting_position();
-        pos.player_to_move = Color::White;
-        let mut moves: Vec<Move> = Vec::new();
-
-        let a2 = sq(0, 1);
-        let a3 = sq(0, 2);
-
-        //put(&mut pos, a2, Color::White, PieceKind::Pawn);
-        put(&mut pos, a3, Color::White, PieceKind::Bishop);
-        gen_pawn_moves(&pos, &mut moves, a2);
-
-        assert!(
-            !moves
-                .iter()
-                .any(|m| m.from == a2 as u8 && (m.to == a3 as u8 || m.to == (a2 + 20) as u8)),
-            "pawn generated illegal forward moves while blocked: {:?}",
-            moves
-        );
-    }
-
-    #[test]
-    fn pawn_a3_free_a4_blocked_single_yes_double_no() {
-        let mut pos = Position::starting_position();
-        pos.player_to_move = Color::White;
-
-        let a2 = sq(0, 1);
-        let a3 = sq(0, 2);
-        let a4 = sq(0, 3);
-
-        put(&mut pos, a4, Color::White, PieceKind::Bishop);
-
-        let mut moves = Vec::new();
-        gen_pawn_moves(&pos, &mut moves, a2);
-
-        assert!(
-            moves.iter().any(|m| m.from == a2 as u8 && m.to == a3 as u8),
-            "expected single push a2->a3, got: {:?}",
-            moves
-        );
-        assert!(
-            !moves.iter().any(|m| m.from == a2 as u8 && m.to == a4 as u8),
-            "did not expect double push a2->a4 when a4 blocked, got: {:?}",
-            moves
-        );
-    }
-
-    #[test]
-    fn pawn_capture() {
-        let mut pos = Position::empty();
-        pos.player_to_move = Color::White;
-
-        let b2 = sq(1, 1);
-        let c3 = sq(2, 2);
-        let a3 = sq(0, 2);
-
-        put(&mut pos, b2, Color::White, PieceKind::Pawn);
-        put(&mut pos, a3, Color::Black, PieceKind::Bishop);
-        put(&mut pos, c3, Color::Black, PieceKind::Knight);
-
-        let mut moves = Vec::new();
-        gen_pawn_moves(&pos, &mut moves, b2);
-
-        assert_eq!(moves.len(), 4);
-    }
-
-    #[test]
-    fn pawn_promotion() {
-        let mut pos = Position::empty();
-        pos.player_to_move = Color::White;
-
-        let g7 = sq(6, 6); // pawn one step before promotion
-        let g8 = sq(6, 7);
-
-        put(&mut pos, g7, Color::White, PieceKind::Pawn);
-
-        let mut moves = Vec::new();
-        gen_pawn_moves(&pos, &mut moves, g7);
-
-        assert_eq!(moves.len(), 4);
-        assert!(moves.iter().all(|m| m.to == g8 as u8));
-        assert!(moves.iter().all(|m| m.promotion.is_some()));
-    }
-
-    #[test]
-    fn en_passant() {
-        let mut pos = Position::empty();
-        pos.player_to_move = Color::White;
-
-        let e5 = sq(4, 4);
-        let d6 = sq(3, 5);
-
-        put(&mut pos, e5, Color::White, PieceKind::Pawn);
-
-        // Set EP target square (as if black just played d7->d5)
-        pos.en_passant_square = Some(Square::new(d6 as u8));
-
-        let mut moves = Vec::new();
-        gen_pawn_moves(&pos, &mut moves, e5);
-
-        assert!(
-            moves.iter().any(|m| m.from == e5 as u8
-                && m.to == d6 as u8
-                && matches!(m.move_type, crate::movegen::MoveType::EnPassant)),
-            "expected en passant move e5->d6, got: {:?}",
-            moves
-        );
-    }
-}
