@@ -1,16 +1,16 @@
 use crate::board::conversion::{square120_from_string, square120_to_string};
 use crate::board::mailbox120::{is_on_board, square120_from_file_rank};
-use crate::position::{Cell, Color, Piece, Position, Square, PieceKind};
+use crate::position::{Cell, Color, Piece, PieceKind, Position, Square};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FenError {
-    InvalidFieldCount {found: usize},
+    InvalidFieldCount { found: usize },
 
     //board errors
     InvalidBoardFormat,
-    InvalidOverallRankCount {found: usize},
-    InvalidFileSumInOneRank {rank: usize, sum: usize},
-    InvalidPieceChar {c: char},
+    InvalidOverallRankCount { found: usize },
+    InvalidFileSumInOneRank { rank: usize, sum: usize },
+    InvalidPieceChar { c: char },
 
     InvalidCurrentColor,
     InvalidCastling,
@@ -18,22 +18,23 @@ pub enum FenError {
     InvalidHalfmove,
     InvalidFullmove,
 
-    InvalidKingCount {color: Color, found: usize},
+    InvalidKingCount { color: Color, found: usize },
 }
 
 impl Position {
-
     pub fn from_fen(fen_string: &str) -> Result<Self, FenError> {
         let fields: Vec<&str> = fen_string.split_whitespace().collect();
         if fields.len() != 6 {
-            return Err(FenError::InvalidFieldCount {found: fields.len()});
+            return Err(FenError::InvalidFieldCount {
+                found: fields.len(),
+            });
         }
         let mut pos = Position::empty();
 
         parse_piece_placement(fields[0], &mut pos)?;
-        pos.player_to_move =parse_active_color(fields[1])?;
+        pos.player_to_move = parse_active_color(fields[1])?;
         pos.castling_rights = parse_castling(fields[2])?;
-        pos.en_passant_square = parse_en_passant(fields[3])?;
+        pos.en_passant_square = parse_en_passant(fields[3], pos.player_to_move)?;
         pos.half_move_clock = parse_halfmove_clock(fields[4])?;
         pos.move_counter = parse_fullmove_counter(fields[5])?;
 
@@ -61,23 +62,23 @@ impl Position {
         Ok(pos)
     }
 
-    
     pub fn to_fen(&self) -> String {
         let board = piece_placement_to_string(self);
         let active_color = active_color_to_string(self.player_to_move);
         let castling = castling_to_string(self.castling_rights);
         let en_passant = en_passant_to_string(self.en_passant_square);
 
-        format!("{} {} {} {} {} {}", board, active_color, castling, en_passant, self.half_move_clock, self.move_counter)
+        format!(
+            "{} {} {} {} {} {}",
+            board, active_color, castling, en_passant, self.half_move_clock, self.move_counter
+        )
     }
-
-
 }
 
 fn parse_piece_placement(board_fields: &str, pos: &mut Position) -> Result<(), FenError> {
     let ranks: Vec<&str> = board_fields.split("/").collect();
     if ranks.len() != 8 {
-        return Err(FenError::InvalidOverallRankCount {found: ranks.len()});
+        return Err(FenError::InvalidOverallRankCount { found: ranks.len() });
     }
     for (fen_rank, rank_string) in ranks.iter().enumerate() {
         //fen_rank 0..=7 semantically equals fen order of rank 8... rank 1
@@ -87,15 +88,15 @@ fn parse_piece_placement(board_fields: &str, pos: &mut Position) -> Result<(), F
     Ok(())
 }
 
-
 fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Result<(), FenError> {
     let rank = 7 - fen_rank; //this way, the first fen_rank we get from enumerate(), which is semantically 8, gets turned into 7 internally
-    
+
     let mut file_cursor: usize = 0; //cursor for the files, value of 8 means "rank is full"
 
     for ch in rank_string.chars() {
         match ch {
-            '0'..='9' => { //numbers mean: "skip this many empty fields in a rank"
+            '0'..='9' => {
+                //numbers mean: "skip this many empty fields in a rank"
                 let n = (ch as u8 - b'0') as usize;
 
                 if !(1..=8).contains(&n) {
@@ -104,15 +105,24 @@ fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Res
 
                 file_cursor += n; //adjust the file_cursor to jump forther in the rank
 
-                if file_cursor > 8 { //the rank only ever contains 8 files
-                    return Err(FenError::InvalidFileSumInOneRank {rank: fen_rank, sum: file_cursor});
+                if file_cursor > 8 {
+                    //the rank only ever contains 8 files
+                    return Err(FenError::InvalidFileSumInOneRank {
+                        rank: fen_rank,
+                        sum: file_cursor,
+                    });
                 }
             }
-            _ => { //otherwise match a character
-                let piece = fen_char_to_piece(ch).ok_or(FenError::InvalidPieceChar {c: ch})?;
+            _ => {
+                //otherwise match a character
+                let piece = fen_char_to_piece(ch).ok_or(FenError::InvalidPieceChar { c: ch })?;
 
-                if file_cursor >= 8 { // have to check if file_cursor is surpassed the maximum of 8 fields, if a number comes before a char in the rank_string
-                    return Err(FenError::InvalidFileSumInOneRank {rank: fen_rank, sum: file_cursor});
+                if file_cursor >= 8 {
+                    // have to check if file_cursor is surpassed the maximum of 8 fields, if a number comes before a char in the rank_string
+                    return Err(FenError::InvalidFileSumInOneRank {
+                        rank: fen_rank,
+                        sum: file_cursor,
+                    });
                 }
 
                 let square120 = square120_from_file_rank(file_cursor, rank);
@@ -120,10 +130,12 @@ fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Res
                 file_cursor += 1; //increment normally after adding a char as piece
             }
         }
-    
     } //in the end, the rank has to have 8 fields
     if file_cursor != 8 {
-        return Err(FenError::InvalidFileSumInOneRank {rank: fen_rank, sum: file_cursor});
+        return Err(FenError::InvalidFileSumInOneRank {
+            rank: fen_rank,
+            sum: file_cursor,
+        });
     }
 
     Ok(())
@@ -148,7 +160,7 @@ fn fen_char_to_piece(ch: char) -> Option<Piece> {
         _ => return None,
     };
 
-    Some(Piece {color, kind})
+    Some(Piece { color, kind })
 }
 
 //helper for parsing the second FEN-field (strict parsing, don't accept uppercase)
@@ -182,7 +194,7 @@ fn parse_castling(field: &str) -> Result<u8, FenError> {
 
         //bitwise addition on rights resulting in 1, means the bit was already updated (read before)
         if rights & bit != 0 {
-        return Err(FenError::InvalidCastling);
+            return Err(FenError::InvalidCastling);
         }
         //update the bit in the rights, only if the corresponding character is read the first time
         rights |= bit;
@@ -191,20 +203,32 @@ fn parse_castling(field: &str) -> Result<u8, FenError> {
     Ok(rights)
 }
 
-fn parse_en_passant(field: &str) -> Result<Option<Square>, FenError> {
+fn parse_en_passant(field: &str, player_to_move: Color) -> Result<Option<Square>, FenError> {
     if field == "-" {
         return Ok(None);
     }
-    let square120 = square120_from_string(field).ok_or(FenError::InvalidEnPassant)?;
 
-    if !is_on_board(square120) {
+    //avoid panic: first check length, then index
+    let bytes = field.as_bytes();
+    if bytes.len() != 2 {
+        return Err(FenError::InvalidEnPassant);
+    }
+    let rank_byte = bytes[1];
+
+    //rank has to be either 3 or 6
+    if rank_byte != b'3' && rank_byte != b'6' {
         return Err(FenError::InvalidEnPassant);
     }
 
-    let square_string = square120_to_string(square120).ok_or(FenError::InvalidEnPassant)?;
-    let rank_byte = square_string.as_bytes()[1];
+    //check: rank 3 -> Black's turn, rank 6 -> White's turn
+    match (rank_byte, player_to_move) {
+        (b'3', Color::Black) | (b'6', Color::White) => {}
+        _ => return Err(FenError::InvalidEnPassant),
+    }
 
-    if rank_byte != b'3' && rank_byte != b'6' {
+    let square120 = square120_from_string(field).ok_or(FenError::InvalidEnPassant)?;
+
+    if !is_on_board(square120) {
         return Err(FenError::InvalidEnPassant);
     }
 
@@ -224,18 +248,16 @@ fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
     let parsed = field.parse::<u16>();
 
     match parsed {
-        Ok(value) =>
-        if value < 1 {
-            Err(FenError::InvalidFullmove)
-        }
-        else {
-            Ok(value)
+        Ok(value) => {
+            if value < 1 {
+                Err(FenError::InvalidFullmove)
+            } else {
+                Ok(value)
+            }
         }
         Err(_) => Err(FenError::InvalidFullmove),
     }
 }
-
-
 
 //helpers for to_fen()
 
@@ -258,7 +280,9 @@ fn encode_rank(pos: &Position, rank: usize) -> String {
         let square120 = square120_from_file_rank(file, rank);
 
         match pos.board[square120] {
-            Cell::Empty => { empty_squares += 1; }
+            Cell::Empty => {
+                empty_squares += 1;
+            }
             Cell::Piece(piece) => {
                 if empty_squares > 0 {
                     output_string.push(std::char::from_digit(empty_squares as u32, 10).unwrap());
@@ -266,12 +290,15 @@ fn encode_rank(pos: &Position, rank: usize) -> String {
                 }
                 output_string.push(piece_to_fen_char(piece));
             }
-            Cell::Offboard => { unreachable!("square120_from_file_square returned offboard square") } //maybe re-think this handling because of crashing?
+            Cell::Offboard => {
+                debug_assert!(false, "square120_from_file_square returned offboard square");
+                empty_squares += 1; //use as fallback
+            }
         }
     }
 
     if empty_squares > 0 {
-            output_string.push(std::char::from_digit(empty_squares as u32, 10).unwrap());
+        output_string.push(std::char::from_digit(empty_squares as u32, 10).unwrap());
     }
 
     output_string
@@ -281,17 +308,17 @@ fn encode_rank(pos: &Position, rank: usize) -> String {
 //since we changed Piece in position.rs, our piece_to_char() in conversion.rs is of no use now
 fn piece_to_fen_char(piece: Piece) -> char {
     let piece_char = match piece.kind {
-            PieceKind::Pawn => 'p',
-            PieceKind::Knight => 'n',
-            PieceKind::Bishop => 'b',
-            PieceKind::Rook => 'r',
-            PieceKind::Queen => 'q',
-            PieceKind::King => 'k',
+        PieceKind::Pawn => 'p',
+        PieceKind::Knight => 'n',
+        PieceKind::Bishop => 'b',
+        PieceKind::Rook => 'r',
+        PieceKind::Queen => 'q',
+        PieceKind::King => 'k',
     };
 
     match piece.color {
-            Color::White => piece_char.to_ascii_uppercase(),
-            Color::Black => piece_char,
+        Color::White => piece_char.to_ascii_uppercase(),
+        Color::Black => piece_char,
     }
 }
 
@@ -308,13 +335,21 @@ fn castling_to_string(rights: u8) -> String {
     }
 
     let mut s = String::new();
-    if rights & 0b0001 != 0 {s.push('K');}
-    if rights & 0b0010 != 0 {s.push('Q');}
-    if rights & 0b0100 != 0 {s.push('k');}
-    if rights & 0b1000 != 0 {s.push('q');}
+    if rights & 0b0001 != 0 {
+        s.push('K');
+    }
+    if rights & 0b0010 != 0 {
+        s.push('Q');
+    }
+    if rights & 0b0100 != 0 {
+        s.push('k');
+    }
+    if rights & 0b1000 != 0 {
+        s.push('q');
+    }
 
     //extra check
-    if s.is_empty() {"-".to_string()} else {s}
+    if s.is_empty() { "-".to_string() } else { s }
 }
 
 fn en_passant_to_string(ep_target: Option<Square>) -> String {
@@ -324,30 +359,44 @@ fn en_passant_to_string(ep_target: Option<Square>) -> String {
     }
 }
 
-
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::board::mailbox120::square120_from_file_rank;
 
     #[test]
-    fn parse_one_rank_places_correct_pieces_on_rank8() { //not exactly all 8 pieces are tested here
+    fn parse_one_rank_places_correct_pieces_on_rank8() {
+        //not exactly all 8 pieces are tested here
         let mut pos = Position::empty();
 
         parse_one_rank(0, "rnbqkbnr", &mut pos).expect("valid rank string should parse");
-        
+
         let a8 = square120_from_file_rank(0, 7); //a8 should now be black rook
-        assert_eq!(pos.board[a8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook}));
+        assert_eq!(
+            pos.board[a8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::Rook
+            })
+        );
 
         let d8 = square120_from_file_rank(3, 7); //d8 should now be a black queen
-        assert_eq!(pos.board[d8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Queen}));
+        assert_eq!(
+            pos.board[d8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::Queen
+            })
+        );
 
         let e8 = square120_from_file_rank(4, 7); //e8 should now be a black king
-        assert_eq!(pos.board[e8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::King}));
+        assert_eq!(
+            pos.board[e8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::King
+            })
+        );
     }
 
     #[test]
@@ -355,11 +404,18 @@ mod tests {
         let mut pos = Position::empty();
 
         //3p4 should be parsed as "3 empty cells, then 1 black pawn, ten 4 empty cells = 8 cells in total"
-        parse_one_rank(0, "3p4", &mut pos).expect("valid rank string containing digits and characters, should pars");
+        parse_one_rank(0, "3p4", &mut pos)
+            .expect("valid rank string containing digits and characters, should pars");
 
         //pawn should land on file=3 (3 internally, 4 semantically), meaning file d, rank 8
         let d8 = square120_from_file_rank(3, 7);
-        assert_eq!(pos.board[d8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Pawn}));
+        assert_eq!(
+            pos.board[d8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::Pawn
+            })
+        );
     }
 
     #[test]
@@ -373,53 +429,74 @@ mod tests {
     fn parse_one_rank_rejects_too_small_file_sum() {
         let mut pos = Position::empty();
         let err = parse_one_rank(0, "7", &mut pos).unwrap_err();
-        assert_eq!(err, FenError::InvalidFileSumInOneRank {rank: 0, sum: 7});
+        assert_eq!(err, FenError::InvalidFileSumInOneRank { rank: 0, sum: 7 });
     }
 
     #[test]
     fn parse_one_rank_rejects_invalid_piece_char() {
         let mut pos = Position::empty();
         let err = parse_one_rank(0, "7X", &mut pos).unwrap_err();
-        assert_eq!(err, FenError::InvalidPieceChar {c: 'X'});
+        assert_eq!(err, FenError::InvalidPieceChar { c: 'X' });
     }
 
     #[test]
-    fn parse_piece_placement_startposition_can_be_set() { //only check a few pieces, after setting starting position
+    fn parse_piece_placement_startposition_can_be_set() {
+        //only check a few pieces, after setting starting position
         let mut pos = Position::empty();
 
-        parse_piece_placement("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", &mut pos).expect("Fen String is accepted as valid and interpretet as starting piece placement");
-        
+        parse_piece_placement("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", &mut pos)
+            .expect("Fen String is accepted as valid and interpretet as starting piece placement");
+
         let a8 = square120_from_file_rank(0, 7); //want to check if a8 (rook black) was parsed correctly
-        assert_eq!(pos.board[a8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook}));
+        assert_eq!(
+            pos.board[a8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::Rook
+            })
+        );
 
         let e1 = square120_from_file_rank(4, 0); //want to check if e1 (king white) was parsed correctly
-        assert_eq!(pos.board[e1], Cell::Piece(Piece {color: Color::White, kind: PieceKind::King}));
+        assert_eq!(
+            pos.board[e1],
+            Cell::Piece(Piece {
+                color: Color::White,
+                kind: PieceKind::King
+            })
+        );
     }
 
     #[test]
     fn parse_piece_placement_rejects_wrong_rank_count() {
         let mut pos = Position::empty();
         let err = parse_piece_placement("8/8/8/8/8/8/8", &mut pos).unwrap_err();
-        assert_eq!(err, FenError::InvalidOverallRankCount {found: 7});
+        assert_eq!(err, FenError::InvalidOverallRankCount { found: 7 });
     }
 
     #[test]
     fn parse_piece_placement_empty_board_can_be_parsed() {
         let mut pos = Position::empty();
-        parse_piece_placement("8/8/8/8/8/8/8/8", &mut pos).expect("This FEN-Position is interpreted as an empty board");
+        parse_piece_placement("8/8/8/8/8/8/8/8", &mut pos)
+            .expect("This FEN-Position is interpreted as an empty board");
 
         for file in 0..8 {
             for rank in 0..8 {
                 let square120 = square120_from_file_rank(file, rank);
                 assert_eq!(pos.board[square120], Cell::Empty);
             }
-        }    
+        }
     }
 
     #[test]
     fn fen_char_to_piece_uppercase_is_white() {
         let piece = fen_char_to_piece('N').expect("N should map to a piece");
-        assert_eq!(piece, Piece {color: Color::White, kind: PieceKind::Knight});
+        assert_eq!(
+            piece,
+            Piece {
+                color: Color::White,
+                kind: PieceKind::Knight
+            }
+        );
     }
 
     #[test]
@@ -435,7 +512,10 @@ mod tests {
 
     #[test]
     fn parse_active_color_rejects_invalid() {
-        assert_eq!(parse_active_color("c").unwrap_err(), FenError::InvalidCurrentColor);
+        assert_eq!(
+            parse_active_color("c").unwrap_err(),
+            FenError::InvalidCurrentColor
+        );
     }
 
     #[test]
@@ -452,7 +532,7 @@ mod tests {
     fn parse_castling_partiel_rights() {
         assert_eq!(parse_castling("Kq").unwrap(), 0b1001)
     }
-    
+
     #[test]
     fn parse_castling_rejects_invalid_character() {
         assert_eq!(parse_castling("Kx").unwrap_err(), FenError::InvalidCastling);
@@ -465,9 +545,12 @@ mod tests {
 
     #[test]
     fn parse_castling_rejects_duplicafes() {
-        assert_eq!(parse_castling("KKq").unwrap_err(), FenError::InvalidCastling);
+        assert_eq!(
+            parse_castling("KKq").unwrap_err(),
+            FenError::InvalidCastling
+        );
     }
-    
+
     #[test]
     fn parse_castling_accepts_any_rights_order() {
         assert_eq!(parse_castling("qK").unwrap(), 0b1001);
@@ -475,24 +558,36 @@ mod tests {
 
     #[test]
     fn parse_en_passant_dash_is_none() {
-        assert_eq!(parse_en_passant("-").unwrap(), None);
+        assert_eq!(parse_en_passant("-", Color::White).unwrap(), None);
     }
 
     #[test]
     fn parse_en_passant_accepts_valid_square() {
-        let en_passant = parse_en_passant("e3").unwrap();
+        let en_passant = parse_en_passant("e3", Color::Black).unwrap();
         assert!(en_passant.is_some());
     }
 
     #[test]
     fn parse_en_passant_rejects_invalid_square() {
-        let error = parse_en_passant("x9").unwrap_err();
+        let error = parse_en_passant("x9", Color::White).unwrap_err();
         assert_eq!(error, FenError::InvalidEnPassant);
     }
 
     #[test]
     fn parse_en_passant_rejects_wrong_ranks() {
-        let error = parse_en_passant("e4").unwrap_err();
+        let error = parse_en_passant("e4", Color::White).unwrap_err();
+        assert_eq!(error, FenError::InvalidEnPassant);
+    }
+
+    #[test]
+    fn parse_en_passant_rejects_e3_when_white_to_move() {
+        let error = parse_en_passant("e3", Color::White).unwrap_err();
+        assert_eq!(error, FenError::InvalidEnPassant);
+    }
+
+    #[test]
+    fn parse_en_passant_rejects_e6_when_black_to_move() {
+        let error = parse_en_passant("e6", Color::Black).unwrap_err();
         assert_eq!(error, FenError::InvalidEnPassant);
     }
 
@@ -504,8 +599,14 @@ mod tests {
 
     #[test]
     fn parse_halfmove_clock_rejects_invalid_input() {
-        assert_eq!(parse_halfmove_clock("-1").unwrap_err(), FenError::InvalidHalfmove);
-        assert_eq!(parse_halfmove_clock("abc").unwrap_err(), FenError::InvalidHalfmove);
+        assert_eq!(
+            parse_halfmove_clock("-1").unwrap_err(),
+            FenError::InvalidHalfmove
+        );
+        assert_eq!(
+            parse_halfmove_clock("abc").unwrap_err(),
+            FenError::InvalidHalfmove
+        );
     }
 
     #[test]
@@ -516,8 +617,14 @@ mod tests {
 
     #[test]
     fn parse_fullmove_counter_rejects_zero_and_invalid() {
-        assert_eq!(parse_fullmove_counter("0").unwrap_err(), FenError::InvalidFullmove);
-        assert_eq!(parse_fullmove_counter("x").unwrap_err(), FenError::InvalidFullmove);
+        assert_eq!(
+            parse_fullmove_counter("0").unwrap_err(),
+            FenError::InvalidFullmove
+        );
+        assert_eq!(
+            parse_fullmove_counter("x").unwrap_err(),
+            FenError::InvalidFullmove
+        );
     }
 
     #[test]
@@ -526,11 +633,23 @@ mod tests {
         let pos = Position::from_fen(fen).expect("startposition fen should parse");
 
         let a8 = square120_from_file_rank(0, 7);
-        assert_eq!(pos.board[a8], Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook}));
+        assert_eq!(
+            pos.board[a8],
+            Cell::Piece(Piece {
+                color: Color::Black,
+                kind: PieceKind::Rook
+            })
+        );
 
         let e1 = square120_from_file_rank(4, 0);
-        assert_eq!(pos.board[e1], Cell::Piece(Piece {color: Color::White, kind: PieceKind::King}));
-    
+        assert_eq!(
+            pos.board[e1],
+            Cell::Piece(Piece {
+                color: Color::White,
+                kind: PieceKind::King
+            })
+        );
+
         assert_eq!(pos.player_to_move, Color::White);
         assert_eq!(pos.castling_rights, 0b1111);
         assert_eq!(pos.en_passant_square, None);
@@ -542,7 +661,7 @@ mod tests {
     fn from_fen_rejects_wrong_field_count() {
         let fen = "8/8/8/8/8/8/8/8 1 - - 0";
         let error = Position::from_fen(fen).unwrap_err();
-        assert_eq!(error, FenError::InvalidFieldCount {found: 5});
+        assert_eq!(error, FenError::InvalidFieldCount { found: 5 });
     }
 
     #[test]
@@ -556,14 +675,26 @@ mod tests {
     fn from_fen_rejects_missing_king() {
         let fen = "8/8/8/8/8/8/8/4K3 w - - 0 1";
         let error = Position::from_fen(fen).unwrap_err();
-        assert_eq!(error, FenError::InvalidKingCount {color: Color::Black, found: 0});
+        assert_eq!(
+            error,
+            FenError::InvalidKingCount {
+                color: Color::Black,
+                found: 0
+            }
+        );
     }
 
     #[test]
     fn from_fen_rejects_two_kings() {
         let fen = "8/8/8/8/8/8/8/3KK3 w - - 0 1";
         let error = Position::from_fen(fen).unwrap_err();
-        assert_eq!(error, FenError::InvalidKingCount {color: Color::White, found: 2});
+        assert_eq!(
+            error,
+            FenError::InvalidKingCount {
+                color: Color::White,
+                found: 2
+            }
+        );
     }
 
     //testing to_fen() helpers
@@ -577,12 +708,15 @@ mod tests {
         let pos = Position::starting_position();
         assert_eq!(encode_rank(&pos, 7), "rnbqkbnr");
     }
-    
+
     #[test]
     fn ecode_rank_single_piece_with_gaps() {
         let mut pos = Position::empty();
         let d8 = square120_from_file_rank(3, 7);
-        pos.board[d8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Queen});
+        pos.board[d8] = Cell::Piece(Piece {
+            color: Color::Black,
+            kind: PieceKind::Queen,
+        });
         assert_eq!(encode_rank(&pos, 7), "3q4");
     }
 
@@ -590,7 +724,10 @@ mod tests {
     fn encode_rank_flushes_trailing_empty_squares() {
         let mut pos = Position::empty();
         let a8 = square120_from_file_rank(0, 7);
-        pos.board[a8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Rook});
+        pos.board[a8] = Cell::Piece(Piece {
+            color: Color::Black,
+            kind: PieceKind::Rook,
+        });
         assert_eq!(encode_rank(&pos, 7), "r7");
     }
 
@@ -602,24 +739,35 @@ mod tests {
     #[test]
     fn piece_placement_to_string_startpos_matches_expected() {
         let pos = Position::starting_position();
-        assert_eq!(piece_placement_to_string(&pos), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        assert_eq!(
+            piece_placement_to_string(&pos),
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+        );
     }
 
     #[test]
     fn piece_placement_to_string_single_piece() {
         let mut pos = Position::empty();
         let d8 = square120_from_file_rank(3, 7);
-        pos.board[d8] = Cell::Piece(Piece {color: Color::Black, kind: PieceKind::Queen});
+        pos.board[d8] = Cell::Piece(Piece {
+            color: Color::Black,
+            kind: PieceKind::Queen,
+        });
         assert_eq!(piece_placement_to_string(&pos), "3q4/8/8/8/8/8/8/8");
     }
 
-
     #[test]
     fn piece_to_fen_char_uppercase_and_lowercase_works() {
-        let white_char = piece_to_fen_char(Piece {color: Color::White, kind: PieceKind::Knight});
+        let white_char = piece_to_fen_char(Piece {
+            color: Color::White,
+            kind: PieceKind::Knight,
+        });
         assert_eq!(white_char, 'N');
 
-        let black_char = piece_to_fen_char(Piece {color: Color::Black, kind: PieceKind::Queen});
+        let black_char = piece_to_fen_char(Piece {
+            color: Color::Black,
+            kind: PieceKind::Queen,
+        });
         assert_eq!(black_char, 'q');
     }
 
@@ -652,9 +800,12 @@ mod tests {
     #[test]
     fn to_fen_startpos_matches_expected() {
         let pos = Position::starting_position();
-        assert_eq!(pos.to_fen(), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        assert_eq!(
+            pos.to_fen(),
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        );
     }
-    
+
     #[test]
     fn to_fen_empty_position_matches_expected() {
         let pos = Position::empty();
@@ -713,11 +864,4 @@ mod tests {
         let fen = "8/8/8/8/8/8/8/4K2k w KK - 0 1";
         assert!(Position::from_fen(fen).is_err());
     }
-    
-
-
 }
-
-
-
-
