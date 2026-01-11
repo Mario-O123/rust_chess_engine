@@ -58,3 +58,19 @@ pub fn generate_pseudo_legal_moves(position: &Position) -> Vec<Move> {
     }
     move_list
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let pos = Position::starting_position();
+
+        let pseudo = generate_pseudo_legal_moves(&pos);
+        eprintln!("pseudo count: {}", pseudo.len());
+        for m in &pseudo {
+            eprintln!("{:?}", m);
+        }
+    }
+}
