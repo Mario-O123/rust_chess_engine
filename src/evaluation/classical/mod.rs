@@ -1,16 +1,296 @@
-use crate::position::Position;
 use super::Evaluator;
+use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
+use crate::position::{Cell, Color, Piece, PieceKind, Position};
 
 pub struct ClassicalEval;
 
-impl ClassicalEval {
-    pub fn new() -> Self {Self}
-}
+const PAWN_VALUE: i32 = 100;
+const KNIGHT_VALUE: i32 = 320;
+const BISHOP_VALUE: i32 = 330;
+const ROOK_VALUE: i32 = 500;
+const QUEEN_VALUE: i32 = 900;
+const KING_VALUE: i32 = 0;
+const PLAYERS_TURN: i32 = 10;
+const BISHOP_PAIR: i32 = 30;
+const PHASE_MAX: i32 = 24;
 
-impl Evaluator for ClassicalEval {
-    //dummy evaluate
-    fn evaluate(&mut self, pos: &Position) -> i32 {
-        0
+const PST_PAWN: [i32; 64] = [
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 1
+    5, 10, 10, -20, -20, 10, 10, 5, // Rank 2
+    5, -5, -10, 0, 0, -10, -5, 5, // Rank 3
+    0, 0, 0, 20, 20, 0, 0, 0, // Rank 4
+    5, 5, 10, 25, 25, 10, 5, 5, // Rank 5
+    10, 10, 20, 30, 30, 20, 10, 10, // Rank 6
+    50, 50, 50, 50, 50, 50, 50, 50, // Rank 7
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 8 (Promotion happens first)
+];
+
+const PST_KNIGHT: [i32; 64] = [
+    -50, -40, -30, -30, -30, -30, -40, -50, // Rank 1
+    -40, -20, 0, 0, 0, 0, -20, -40, // Rank 2
+    -30, 0, 10, 15, 15, 10, 0, -30, // Rank 3
+    -30, 5, 15, 20, 20, 15, 5, -30, // Rank 4
+    -30, 0, 15, 20, 20, 15, 0, -30, // Rank 5
+    -30, 5, 10, 15, 15, 10, 5, -30, // Rank 6
+    -40, -20, 0, 5, 5, 0, -20, -40, // Rank 7
+    -50, -40, -30, -30, -30, -30, -40, -50, // Rank 8
+];
+
+const PST_BISHOP: [i32; 64] = [
+    -20, -10, -10, -10, -10, -10, -10, -20, // Rank 1
+    -10, 0, 0, 0, 0, 0, 0, -10, // Rank 2
+    -10, 0, 5, 10, 10, 5, 0, -10, // Rank 3
+    -10, 5, 5, 10, 10, 5, 5, -10, // Rank 4
+    -10, 0, 10, 10, 10, 10, 0, -10, // Rank 5
+    -10, 10, 10, 10, 10, 10, 10, -10, // Rank 6
+    -10, 5, 0, 0, 0, 0, 5, -10, // Rank 7
+    -20, -10, -10, -10, -10, -10, -10, -20, // Rank 8
+];
+
+const PST_ROOK: [i32; 64] = [
+    0, 0, 0, 5, 5, 0, 0, 0, // Rank 1
+    -5, 0, 0, 0, 0, 0, 0, -5, // Rank 2
+    -5, 0, 0, 0, 0, 0, 0, -5, // Rank 3
+    -5, 0, 0, 0, 0, 0, 0, -5, // Rank 4
+    -5, 0, 0, 0, 0, 0, 0, -5, // Rank 5
+    -5, 0, 0, 0, 0, 0, 0, -5, // Rank 6
+    5, 10, 10, 10, 10, 10, 10, 5, // Rank 7
+    0, 0, 0, 0, 0, 0, 0, 0, // Rank 8
+];
+
+const PST_QUEEN: [i32; 64] = [
+    -20, -10, -10, -5, -5, -10, -10, -20, // Rank 1
+    -10, 0, 0, 0, 0, 0, 0, -10, // Rank 2
+    -10, 0, 5, 5, 5, 5, 0, -10, // Rank 3
+    -5, 0, 5, 5, 5, 5, 0, -5, // Rank 4
+    0, 0, 5, 5, 5, 5, 0, -5, // Rank 5
+    -10, 5, 5, 5, 5, 5, 0, -10, // Rank 6
+    -10, 0, 5, 0, 0, 0, 0, -10, // Rank 7
+    -20, -10, -10, -5, -5, -10, -10, -20, // Rank 8
+];
+
+// King Early-/Midgame, security is better
+const PST_KING_MG: [i32; 64] = [
+    -30, -40, -40, -50, -50, -40, -40, -30, // Rank 1
+    -30, -40, -40, -50, -50, -40, -40, -30, // Rank 2
+    -30, -40, -40, -50, -50, -40, -40, -30, // Rank 3
+    -30, -40, -40, -50, -50, -40, -40, -30, // Rank 4
+    -20, -30, -30, -40, -40, -30, -30, -20, // Rank 5
+    -10, -20, -20, -20, -20, -20, -20, -10, // Rank 6
+    20, 20, 0, 0, 0, 0, 20, 20, // Rank 7
+    20, 30, 10, 0, 0, 10, 30, 20, // Rank 8
+];
+
+// King Endgame, activity is better
+const PST_KING_EG: [i32; 64] = [
+    -50, -40, -30, -20, -20, -30, -40, -50, // Rank 1
+    -30, -20, -10, 0, 0, -10, -20, -30, // Rank 2
+    -30, -10, 20, 30, 30, 20, -10, -30, // Rank 3
+    -30, -10, 30, 40, 40, 30, -10, -30, // Rank 4
+    -30, -10, 30, 40, 40, 30, -10, -30, // Rank 5
+    -30, -10, 20, 30, 30, 20, -10, -30, // Rank 6
+    -30, -30, 0, 0, 0, 0, -30, -30, // Rank 7
+    -50, -30, -30, -30, -30, -30, -30, -50, // Rank 8
+];
+
+impl ClassicalEval {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn get_piece_value(piece: &Piece) -> i32 {
+        match piece.kind {
+            PieceKind::Pawn => PAWN_VALUE,
+            PieceKind::Knight => KNIGHT_VALUE,
+            PieceKind::Bishop => BISHOP_VALUE,
+            PieceKind::Rook => ROOK_VALUE,
+            PieceKind::Queen => QUEEN_VALUE,
+            PieceKind::King => KING_VALUE,
+        }
+    }
+
+    fn mirror_sq64(sq64: usize) -> usize {
+        let file = sq64 % 8;
+        let rank = sq64 / 8;
+        (7 - rank) * 8 + file
+    }
+
+    fn phase_calculator(piece: &Piece) -> i32 {
+        match piece.kind {
+            PieceKind::Knight => 1,
+            PieceKind::Bishop => 1,
+            PieceKind::Rook => 2,
+            PieceKind::Queen => 4,
+            _ => 0,
+        }
+    }
+
+    fn king_pst_blend(sq64: usize, phase: i32) -> i32 {
+        (PST_KING_MG[sq64] * phase + PST_KING_EG[sq64] * (PHASE_MAX - phase)) / PHASE_MAX
+    }
+
+    fn get_square_value(sq: usize, piece: &Piece) -> i32 {
+        // check if sq64_i8 is valid
+        let sq64_i8 = SQUARE120_TO_SQUARE64[sq];
+        if sq64_i8 < 0 {
+            return 0;
+        }
+
+        let mut sq64 = sq64_i8 as usize;
+        if piece.color == Color::Black {
+            sq64 = Self::mirror_sq64(sq64);
+        }
+
+        match piece.kind {
+            PieceKind::Pawn => PST_PAWN[sq64],
+            PieceKind::Knight => PST_KNIGHT[sq64],
+            PieceKind::Bishop => PST_BISHOP[sq64],
+            PieceKind::Rook => PST_ROOK[sq64],
+            PieceKind::Queen => PST_QUEEN[sq64],
+            _ => 0,
+        }
     }
 }
 
+impl Evaluator for ClassicalEval {
+    fn evaluate(&mut self, pos: &Position) -> i32 {
+        let mut score = 0;
+        let mut bishop_counter_white = 0;
+        let mut bishop_counter_black = 0;
+        let mut phase_counter = 0;
+        let mut white_king_sq64: usize = 0;
+        let mut black_king_sq64: usize = 0;
+
+        // Bonus for piece and square depending on PST
+        for (sq, cell) in pos.board.iter().enumerate() {
+            if let Cell::Piece(piece) = cell {
+                let value = Self::get_piece_value(piece) + Self::get_square_value(sq, piece);
+
+                match piece.color {
+                    Color::White => score += value,
+                    Color::Black => score -= value,
+                };
+
+                if piece.kind == PieceKind::Bishop {
+                    match piece.color {
+                        Color::White => bishop_counter_white += 1,
+                        Color::Black => bishop_counter_black += 1,
+                    };
+                };
+
+                if piece.kind == PieceKind::King {
+                    let ksq_i8 = SQUARE120_TO_SQUARE64[sq];
+                    if ksq_i8 >= 0 {
+                        let ksq = ksq_i8 as usize;
+                        match piece.color {
+                            Color::White => white_king_sq64 = ksq,
+                            Color::Black => black_king_sq64 = Self::mirror_sq64(ksq),
+                        }
+                    }
+                }
+
+                phase_counter += Self::phase_calculator(piece);
+            }
+        }
+
+        // alarm if there are no 2 kings on the board
+        debug_assert!(white_king_sq64 < 64 && black_king_sq64 < 64);
+
+        // Kings are handled seperatly because of 2 PSTs
+        // The 2 PSTs are blend, depending on non-pawn-pieces on board
+        let phase = phase_counter.clamp(0, PHASE_MAX);
+        score += Self::king_pst_blend(white_king_sq64, phase);
+        score -= Self::king_pst_blend(black_king_sq64, phase);
+
+        // Bonus for bishop pair
+        if bishop_counter_white >= 2 {
+            score += BISHOP_PAIR;
+        };
+        if bishop_counter_black >= 2 {
+            score -= BISHOP_PAIR;
+        }
+
+        // Bonus for players turn
+        match pos.player_to_move {
+            Color::White => score += PLAYERS_TURN,
+            Color::Black => score -= PLAYERS_TURN,
+        };
+
+        score
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sq(file: i32, rank: i32) -> usize {
+        (21 + file + rank * 10) as usize
+    }
+
+    // Puts a piece on a sq
+    fn put(pos: &mut Position, s: usize, color: Color, kind: PieceKind) {
+        pos.board[s] = Cell::Piece(crate::position::Piece { color, kind });
+    }
+
+    #[test]
+    fn eval_starting_position() {
+        let pos = Position::starting_position();
+        let mut class_eval = ClassicalEval::new();
+        println!("{}", class_eval.evaluate(&pos));
+        assert_eq!(class_eval.evaluate(&pos), 10);
+    }
+
+    // Should be 10 because of Bonus for Players Turn
+    #[test]
+    fn eval_winning_position_black() {
+        let mut pos = Position::empty();
+        let mut class_eval = ClassicalEval::new();
+
+        let a1 = sq(0, 0);
+        let h2 = sq(7, 1);
+        let h8 = sq(7, 7);
+
+        put(&mut pos, a1, Color::White, PieceKind::King);
+        put(&mut pos, h2, Color::Black, PieceKind::Queen);
+        put(&mut pos, h8, Color::Black, PieceKind::King);
+
+        println!("{}", class_eval.evaluate(&pos));
+        assert!(class_eval.evaluate(&pos) < 0);
+    }
+
+    #[test]
+    fn eval_winning_position_white() {
+        let mut pos = Position::empty();
+        let mut class_eval = ClassicalEval::new();
+
+        let b1 = sq(1, 0);
+        let h4 = sq(7, 3);
+        let h5 = sq(7, 4);
+
+        put(&mut pos, b1, Color::Black, PieceKind::King);
+        put(&mut pos, h4, Color::White, PieceKind::Rook);
+        put(&mut pos, h5, Color::White, PieceKind::King);
+
+        println!("{}", class_eval.evaluate(&pos));
+        assert!(class_eval.evaluate(&pos) > 0);
+    }
+
+    #[test]
+    fn center_knight_is_better() {
+        let mut pos = Position::empty();
+        let mut class_eval = ClassicalEval::new();
+        let a1 = sq(0, 0);
+        let h8 = sq(7, 7);
+        let a8 = sq(7, 0);
+        let e4 = sq(4, 3);
+
+        put(&mut pos, a1, Color::Black, PieceKind::King);
+        put(&mut pos, h8, Color::White, PieceKind::King);
+        put(&mut pos, e4, Color::White, PieceKind::Knight);
+        put(&mut pos, a8, Color::Black, PieceKind::Knight);
+
+        println!("{}", class_eval.evaluate(&pos));
+        assert!(class_eval.evaluate(&pos) > 0);
+    }
+}
