@@ -536,6 +536,53 @@ impl Position {
         self.piece_counter = self.compute_piece_counter();
         self.zobrist = self.compute_zobrist();
     }
+
+    //helpers for make_move
+
+    //we could also use square120_to_square64 but we would have more overhead in the hotpath, look into it
+    #[inline]
+    fn sq64(sq120: usize) -> usize {
+        let s = SQUARE120_TO_SQUARE64[sq120];
+        debug_assert!(s>= 0);
+        s as usize
+    }
+
+    #[inline]
+    fn zob_piece(piece: Piece, sq120: usize) -> u64 {
+        let s64 = Self::sq64(sq120);
+        ZOBRIST.zobrist_values[piece.color.idx()][piece.kind.idx()][s64]
+    }
+
+    #[inline]
+    fn zob_ep(ep_sq120: Square) -> u64 {
+        let s64 = Self::sq64(ep_sq120.as_usize());
+        let file = s64 % BOARD_LENGTH;
+        ZOBRIST.zobrist_enpassant[file]
+    }
+
+    #[inline]
+    fn pc_idx(piece: Piece) -> usize {
+        piece.kind.idx() + piece.color.idx() * 6
+    }
+
+    #[inline]
+    fn xoe_castling_delts(hash: &mut u64, old: u8, new: u8) {
+        const WK: u8 = 0b0001;
+        const WQ: u8 = 0b0010;
+        const BK: u8 = 0b0100;
+        const BQ: u8 = 0b1000;
+        let flags = [WK, WQ, BK, BQ];
+        for (i, f) in flags.iter().enumerate() {
+            if (old ^ new) & f != 0 {
+                *hash ^= ZOBRIST.zobrist_castling[i]
+            }
+        }
+    }
+
+
+
+
+
 }
 
 #[cfg(test)]
