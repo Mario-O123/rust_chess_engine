@@ -21,6 +21,7 @@ pub struct GameState {
 }
 
 // Move is not implemented yet
+#[derive(Clone, Debug)]
 pub struct Undo {
     pub mv: Move,
     pub moving_piece: Piece,
