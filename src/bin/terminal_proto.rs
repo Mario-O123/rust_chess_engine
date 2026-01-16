@@ -1,12 +1,12 @@
 use std::io::{self, Write};
 
-use rust_chess_engine::position::{Position, Color, PieceKind, Cell};
-use rust_chess_engine::movegen::{generate_pseudo_legal_moves, filter_legal_moves, Move};
 use rust_chess_engine::board::mailbox120::square120_from_file_rank;
+use rust_chess_engine::movegen::{Move, filter_legal_moves, generate_pseudo_legal_moves};
+use rust_chess_engine::position::{Cell, Color, PieceKind, Position};
 
 fn main() {
     let mut pos = Position::starting_position();
-    
+
     loop {
         print_board(&pos);
         println!("FEN: {}", pos.to_fen());
@@ -38,7 +38,6 @@ fn main() {
             break;
         }
 
-
         //User move: UCI -> matching legal move
         let user_mv = match find_legal_move_from_uci(input, &legal) {
             Some(mv) => mv,
@@ -61,8 +60,7 @@ fn main() {
         let engine_mv = legal2[0];
         println!("Engine: {}", engine_mv.to_uci());
         pos.make_move(engine_mv);
-
-    }    
+    }
 }
 
 fn print_board(pos: &Position) {
@@ -81,7 +79,6 @@ fn print_board(pos: &Position) {
         println!();
     }
     println!("\n   a b c d e f g h");
-
 }
 
 fn piece_to_char(color: Color, kind: PieceKind) -> char {
@@ -98,7 +95,7 @@ fn piece_to_char(color: Color, kind: PieceKind) -> char {
         (Color::Black, PieceKind::Bishop) => 'b',
         (Color::Black, PieceKind::Rook) => 'r',
         (Color::Black, PieceKind::Queen) => 'q',
-        (Color::Black, PieceKind::King) => 'k',        
+        (Color::Black, PieceKind::King) => 'k',
     }
 }
 
@@ -110,10 +107,6 @@ fn legal_moves(pos: &Position) -> Vec<Move> {
 fn find_legal_move_from_uci(input: &str, legal: &[Move]) -> Option<Move> {
     let key = Move::from_uci(input)?;
     legal.iter().copied().find(|m| {
-        m.from == key.from &&
-        m.to == key.to &&
-        m.promotion_piece() == key.promotion_piece()
+        m.from == key.from && m.to == key.to && m.promotion_piece() == key.promotion_piece()
     })
 }
-
-
