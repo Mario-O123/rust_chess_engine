@@ -385,6 +385,12 @@ impl Position {
             "make_move: wrong side moved"
         );
 
+        //castling snapshot + old EP hash remove
+        let old_castling = self.castling_rights;
+        if let Some(old_ep) = self.en_passant_square {
+            self.zobrist ^= Self::zob_ep(old_ep);
+        }
+
         //EP square is only valid for the immediate newxt Move
         self.en_passant_square = None;
 
@@ -395,19 +401,7 @@ impl Position {
         //En passant
         if mv.is_en_passant() {
             //captured square becomes empty
-            let captured_sq = if moving_piece.color == Color::White {
-                debug_assert!(
-                    to >= 10,
-                    "en passant: to too small for white capture square"
-                );
-                to - 10
-            } else {
-                debug_assert!(
-                    to + 10 < 120,
-                    "en passant: to too large for black capture square"
-                );
-                to + 10
-            };
+            let captured_sq = if moving_piece.color == Color::White { to - 10 } else { to + 120 };
 
             //check that an enemy pawn is captured
             debug_assert!(
@@ -415,17 +409,36 @@ impl Position {
                 "en passant: captured piece is not an enemy pawn"
             );
 
-            if let Cell::Piece(p) = self.board[captured_sq] {
-                captured_piece = Some(p);
-            }
-            self.board[captured_sq] = Cell::Empty;
+            let captured_pawn = match self.board[captured_sq] {
+                Cell::Piece(p) => p,
+                _ => { debug_assert!(false); return; }
+            };
+
+            captured_piece = Some(captured_pawn);
             did_capture = true;
 
+            //incremental zobrist + piece counter
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+            self.zobrist ^= Self::zob_piece(captured_pawn, captured_sq);
+            self.zobrist ^= Self::zob_piece(moving_piece, to);
+
+            let ci = Self::pc_idx(captured_pawn);
+            debug_assert!(self.piece_counter[ci] > 0);
+            self.piece_counter[ci] -= 1;
+
+
+            self.board[captured_sq] = Cell::Empty;
             self.board[from] = Cell::Empty;
             self.board[to] = Cell::Piece(moving_piece);
         }
+
+
         //castling
         else if mv.is_castling() {
+            //zobrist king move
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+            self.zobrist ^= Self::zob_piece(moving_piece, to);
+
             //king move
             self.board[from] = Cell::Empty;
             self.board[to] = Cell::Piece(moving_piece);
@@ -436,21 +449,44 @@ impl Position {
                 //kingside
                 let rook_from = from + 3;
                 let rook_to = from + 1;
+
+                //zobrist rook move
+                let rook = Piece { color: moving_piece.color, kind: PieceKind::Rook };
+                self.zobrist ^= Self::zob_piece(rook, rook_from);
+                self.zobrist ^= Self::zob_piece(rook, rook_to);
+
+
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
             } else if king_shift == -2 {
                 //queenside
                 let rook_from = from - 4;
                 let rook_to = from - 1;
+
+                let rook = Piece { color: moving_piece.color, kind: PieceKind::Rook };
+                self.zobrist ^= Self::zob_piece(rook, rook_from);
+                self.zobrist ^= Self::zob_piece(rook, rook_to);
+
+
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
             }
         }
         //Normal, Promotion, DoublePawnPush
         else {
+            //moving piece leaves from
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+
             if let Cell::Piece(p) = self.board[to] {
                 did_capture = true;
                 captured_piece = Some(p);
+
+                //remove captured from has + decrease counter
+                self.zobrist ^= Self::zob_piece(p, to);
+                let captured_idx = Self::pc_idx(p);
+                debug_assert!(self.piece_counter[captured_idx] > 0);
+                self.piece_counter[captured_idx] -= 1;
+
             }
 
             //remove captured piece = normal capture
@@ -459,17 +495,34 @@ impl Position {
 
             //check if it's a promotion
             if mv.is_promotion() {
+
                 let promo_kind = match mv.promotion_piece() {
                     Some(p) => p.to_piece_kind(),
-                    None => panic!("promotion move must carry promotion piece"), //or Queen as fallback maybe?
+                    None => { debug_assert!(false, "promotion move must carry promotion piece");
+                    return; //or fallback Queen
+                    }
                 };
+                
+                let promoted = Piece {color: moving_piece.color, kind: promo_kind};
+                
+                self.board[to] = Cell::Piece(promoted);
 
-                self.board[to] = Cell::Piece(Piece {
-                    color: moving_piece.color,
-                    kind: promo_kind,
-                });
+                //hash promoted piece + counters pawn promo++
+                self.zobrist ^= Self::zob_piece(promoted, to);
+                
+                let pawn = Piece { color: moving_piece.color, kind: PieceKind::Pawn };
+                let pawn_idx = Self::pc_idx(pawn);
+                debug_assert!(self.piece_counter[pawn_idx] > 0);
+                self.piece_counter[pawn_idx] -= 1;
+
+                let queen_idx = Self::pc_idx(promoted);
+                self.piece_counter[queen_idx] = self.piece_counter[queen_idx].saturating_add(1);
+
             } else {
-                self.board[to] = Cell::Piece((moving_piece));
+                self.board[to] = Cell::Piece(moving_piece);
+
+                //moving piece arrives
+                self.zobrist ^= Self::zob_piece(moving_piece, to);
             }
 
             //if double pawn push, set the EP target
@@ -519,6 +572,12 @@ impl Position {
             }
         }
 
+        //castling has delta + add new EP hash
+        Self::xor_castling_delta(&mut self.zobrist, old_castling, self.castling_rights);
+        if let Some(ep) = self.en_passant_square {
+            self.zobrist ^= Self::zob_ep(ep);
+        }
+
         //update halfmove clock, fullmove counter
         if moving_piece.kind == PieceKind::Pawn || did_capture {
             self.half_move_clock = 0;
@@ -533,8 +592,9 @@ impl Position {
         //side to move
         self.player_to_move = self.player_to_move.opposite();
 
+        /*removed
         self.piece_counter = self.compute_piece_counter();
-        self.zobrist = self.compute_zobrist();
+        self.zobrist = self.compute_zobrist(); */
     }
 
     //helpers for make_move
@@ -566,7 +626,7 @@ impl Position {
     }
 
     #[inline]
-    fn xoe_castling_delts(hash: &mut u64, old: u8, new: u8) {
+    fn xor_castling_delta(hash: &mut u64, old: u8, new: u8) {
         const WK: u8 = 0b0001;
         const WQ: u8 = 0b0010;
         const BK: u8 = 0b0100;
