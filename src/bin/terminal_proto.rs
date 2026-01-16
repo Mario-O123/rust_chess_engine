@@ -12,10 +12,19 @@ fn main() {
         println!("FEN: {}", pos.to_fen());
 
         print!("{:?}> ", pos.player_to_move);
-        io::stdout().flush().unwrap();
+        if io::stdout().flush().is_err() {
+            eprintln!("stdout flush failed");
+            break;
+        }
 
         let mut line = String::new();
-        io::stdin().read_line(&mut line).unwrap();
+        let bytes = match io::stdin().read_line(&mut line) {
+            Ok(n) => n,
+            Err(_) => break,
+        };
+        if bytes == 0 {
+            break;
+        }
         let input = line.trim();
 
         if input.eq_ignore_ascii_case("quit") || input.eq_ignore_ascii_case("exit") {
@@ -94,9 +103,8 @@ fn piece_to_char(color: Color, kind: PieceKind) -> char {
 }
 
 fn legal_moves(pos: &Position) -> Vec<Move> {
-    let pseudo = generate_pseudo_legal_moves(pos); {
-        filter_legal_moves(pos, &pseudo)
-    }
+    let pseudo = generate_pseudo_legal_moves(pos);
+    filter_legal_moves(pos, &pseudo)
 }
 
 fn find_legal_move_from_uci(input: &str, legal: &[Move]) -> Option<Move> {
