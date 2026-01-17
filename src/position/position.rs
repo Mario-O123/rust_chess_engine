@@ -750,8 +750,8 @@ impl Position {
                 }
             };
 
-            self.board[from] = Cell::Piece(undo.moving_piece);
-            self.board[to] = Cell::Empty;
+            self.board[rt] = Cell::Empty;
+            self.board[rf] = Cell::Piece(rook_piece);
 
         } else if undo.mv.is_en_passant() {
             //revert pawn
