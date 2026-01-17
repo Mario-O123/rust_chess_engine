@@ -1,7 +1,7 @@
+use super::state::Undo;
 pub use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use crate::movegen::Move;
-use super::state::Undo;
 use once_cell::sync::Lazy;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -402,7 +402,11 @@ impl Position {
         //En passant
         if mv.is_en_passant() {
             //captured square becomes empty
-            let captured_sq = if moving_piece.color == Color::White { to - 10 } else { to + 120 };
+            let captured_sq = if moving_piece.color == Color::White {
+                to - 10
+            } else {
+                to + 120
+            };
 
             //check that an enemy pawn is captured
             debug_assert!(
@@ -412,7 +416,10 @@ impl Position {
 
             let captured_pawn = match self.board[captured_sq] {
                 Cell::Piece(p) => p,
-                _ => { debug_assert!(false); return; }
+                _ => {
+                    debug_assert!(false);
+                    return;
+                }
             };
 
             captured_piece = Some(captured_pawn);
@@ -427,13 +434,10 @@ impl Position {
             debug_assert!(self.piece_counter[ci] > 0);
             self.piece_counter[ci] -= 1;
 
-
             self.board[captured_sq] = Cell::Empty;
             self.board[from] = Cell::Empty;
             self.board[to] = Cell::Piece(moving_piece);
         }
-
-
         //castling
         else if mv.is_castling() {
             //zobrist king move
@@ -452,10 +456,12 @@ impl Position {
                 let rook_to = from + 1;
 
                 //zobrist rook move
-                let rook = Piece { color: moving_piece.color, kind: PieceKind::Rook };
+                let rook = Piece {
+                    color: moving_piece.color,
+                    kind: PieceKind::Rook,
+                };
                 self.zobrist ^= Self::zob_piece(rook, rook_from);
                 self.zobrist ^= Self::zob_piece(rook, rook_to);
-
 
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
@@ -464,10 +470,12 @@ impl Position {
                 let rook_from = from - 4;
                 let rook_to = from - 1;
 
-                let rook = Piece { color: moving_piece.color, kind: PieceKind::Rook };
+                let rook = Piece {
+                    color: moving_piece.color,
+                    kind: PieceKind::Rook,
+                };
                 self.zobrist ^= Self::zob_piece(rook, rook_from);
                 self.zobrist ^= Self::zob_piece(rook, rook_to);
-
 
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
@@ -487,7 +495,6 @@ impl Position {
                 let captured_idx = Self::pc_idx(p);
                 debug_assert!(self.piece_counter[captured_idx] > 0);
                 self.piece_counter[captured_idx] -= 1;
-
             }
 
             //remove captured piece = normal capture
@@ -496,29 +503,34 @@ impl Position {
 
             //check if it's a promotion
             if mv.is_promotion() {
-
                 let promo_kind = match mv.promotion_piece() {
                     Some(p) => p.to_piece_kind(),
-                    None => { debug_assert!(false, "promotion move must carry promotion piece");
-                    return; //or fallback Queen
+                    None => {
+                        debug_assert!(false, "promotion move must carry promotion piece");
+                        return; //or fallback Queen
                     }
                 };
-                
-                let promoted = Piece {color: moving_piece.color, kind: promo_kind};
-                
+
+                let promoted = Piece {
+                    color: moving_piece.color,
+                    kind: promo_kind,
+                };
+
                 self.board[to] = Cell::Piece(promoted);
 
                 //hash promoted piece + counters pawn promo++
                 self.zobrist ^= Self::zob_piece(promoted, to);
-                
-                let pawn = Piece { color: moving_piece.color, kind: PieceKind::Pawn };
+
+                let pawn = Piece {
+                    color: moving_piece.color,
+                    kind: PieceKind::Pawn,
+                };
                 let pawn_idx = Self::pc_idx(pawn);
                 debug_assert!(self.piece_counter[pawn_idx] > 0);
                 self.piece_counter[pawn_idx] -= 1;
 
                 let queen_idx = Self::pc_idx(promoted);
                 self.piece_counter[queen_idx] = self.piece_counter[queen_idx].saturating_add(1);
-
             } else {
                 self.board[to] = Cell::Piece(moving_piece);
 
@@ -604,7 +616,7 @@ impl Position {
     #[inline]
     fn sq64(sq120: usize) -> usize {
         let s = SQUARE120_TO_SQUARE64[sq120];
-        debug_assert!(s>= 0);
+        debug_assert!(s >= 0);
         s as usize
     }
 
@@ -640,7 +652,6 @@ impl Position {
         }
     }
 
-
     pub fn make_move_with_undo(&mut self, mv: Move) -> Undo {
         let from = mv.from_sq();
         let to = mv.to_sq();
@@ -651,7 +662,10 @@ impl Position {
                 debug_assert!(false, "make_move_with_undo: from-square has no piece");
                 return Undo {
                     mv,
-                    moving_piece: Piece {color: self.player_to_move, kind: PieceKind::Pawn },
+                    moving_piece: Piece {
+                        color: self.player_to_move,
+                        kind: PieceKind::Pawn,
+                    },
                     captured: None,
                     captured_sq: None,
                     rook_from: None,
@@ -667,10 +681,14 @@ impl Position {
                 };
             }
         };
-        
+
         //learn capture info before make_move
         let (captured, captured_sq) = if mv.is_en_passant() {
-            let cap_sq = if moving_piece.color == Color::White {to - 10} else {to + 10};
+            let cap_sq = if moving_piece.color == Color::White {
+                to - 10
+            } else {
+                to + 10
+            };
             let cap = match self.board[cap_sq] {
                 Cell::Piece(p) => Some(p),
                 _ => None,
@@ -708,7 +726,7 @@ impl Position {
 
             prev_player_to_move: self.player_to_move,
             prev_ep_sq: self.en_passant_square,
-             prev_castling: self.castling_rights,
+            prev_castling: self.castling_rights,
             prev_zobrist: self.zobrist,
             prev_hm_clock: self.half_move_clock,
             prev_move_counter: self.move_counter,
@@ -720,8 +738,7 @@ impl Position {
         self.make_move(mv);
 
         undo
-        }
-
+    }
 
     pub fn undo_move(&mut self, undo: Undo) {
         let from = undo.mv.from_sq();
@@ -752,7 +769,6 @@ impl Position {
 
             self.board[rt] = Cell::Empty;
             self.board[rf] = Cell::Piece(rook_piece);
-
         } else if undo.mv.is_en_passant() {
             //revert pawn
             self.board[from] = Cell::Piece(undo.moving_piece);
@@ -772,11 +788,9 @@ impl Position {
                     debug_assert!(false, "undo_move: cpatured piece missing for en-passant");
                     return;
                 }
-
             };
-            
-            self.board[cap_sq] = Cell::Piece(cap);
 
+            self.board[cap_sq] = Cell::Piece(cap);
         } else {
             //normal, capture, promotion
             //from gets original moving_piece (pawn in promotion)
@@ -799,10 +813,7 @@ impl Position {
         self.king_sq = undo.prev_king_sq;
         self.piece_counter = undo.prev_piece_counter;
     }
-
-
 }
-
 
 #[cfg(test)]
 pub(super) mod test_util {
@@ -830,23 +841,18 @@ pub(super) mod test_util {
         pos.zobrist = pos.compute_zobrist();
         pos
     }
-
 }
-
-
 
 #[cfg(test)]
 mod make_move_tests {
-    use super::*;
     use super::test_util::*;
+    use super::*;
     use crate::movegen::{Move, PromotionPiece};
 
     const WK: u8 = 0b0001;
     const WQ: u8 = 0b0010;
     const BK: u8 = 0b0100;
     const BQ: u8 = 0b1000;
-
-    
 
     #[test]
     fn normal_move_updates_board_turn_and_halfmove() {
@@ -1013,8 +1019,8 @@ mod make_move_tests {
 
 #[cfg(test)]
 mod undo_tests {
-    use super::*;
     use super::test_util::*;
+    use super::*;
     use crate::movegen::{Move, PromotionPiece};
 
     const WK: u8 = 0b0001;
@@ -1062,7 +1068,13 @@ mod undo_tests {
         let mv = Move::new(sq_str("e4"), sq_str("e5"));
         let undo = pos.make_move_with_undo(mv);
 
-        assert_eq!(undo.captured, Some(Piece { color: Color::Black, kind: PieceKind::Knight }));
+        assert_eq!(
+            undo.captured,
+            Some(Piece {
+                color: Color::Black,
+                kind: PieceKind::Knight
+            })
+        );
         assert_eq!(undo.captured_sq, None);
 
         pos.undo_move(undo);
@@ -1077,7 +1089,7 @@ mod undo_tests {
         put(&mut pos, "h1", Color::White, PieceKind::Rook);
         pos.castling_rights = WK | WQ;
         pos.player_to_move = Color::White;
-        
+
         //refresh
         pos.king_sq = pos.compute_king_sq();
         pos.piece_counter = pos.compute_piece_counter();
@@ -1104,7 +1116,7 @@ mod undo_tests {
 
         put(&mut pos, "a7", Color::White, PieceKind::Pawn);
         pos.player_to_move = Color::White;
-        
+
         //refresh
         pos.king_sq = pos.compute_king_sq();
         pos.piece_counter = pos.compute_piece_counter();
@@ -1116,10 +1128,15 @@ mod undo_tests {
         let undo = pos.make_move_with_undo(mv);
 
         //moving_piece should be the original pawn = important for undo of promotions
-        assert_eq!(undo.moving_piece, Piece { color: Color::White, kind: PieceKind::Pawn });
+        assert_eq!(
+            undo.moving_piece,
+            Piece {
+                color: Color::White,
+                kind: PieceKind::Pawn
+            }
+        );
 
         pos.undo_move(undo);
         assert_eq!(pos, before);
     }
 }
-
