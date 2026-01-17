@@ -405,7 +405,7 @@ impl Position {
             let captured_sq = if moving_piece.color == Color::White {
                 to - 10
             } else {
-                to + 120
+                to + 10
             };
 
             //check that an enemy pawn is captured
@@ -604,6 +604,7 @@ impl Position {
 
         //side to move
         self.player_to_move = self.player_to_move.opposite();
+        self.zobrist ^= ZOBRIST.zobrist_side_to_move;
 
         /*removed
         self.piece_counter = self.compute_piece_counter();
