@@ -144,3 +144,198 @@ impl Game {
         (file + rank) & 1
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::movegen::Move;
+    use crate::position::{Cell, Position};
+
+    // Helperfunction a1 = sq(0,0); h8 = sq(7,7);
+    fn sq(file: i32, rank: i32) -> usize {
+        (21 + file + rank * 10) as usize
+    }
+
+    // Puts a piece on a sq
+    fn put(pos: &mut Position, s: usize, color: Color, kind: PieceKind) {
+        pos.board[s] = Cell::Piece(crate::position::Piece { color, kind });
+    }
+
+    #[test]
+    fn test_stalemate() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::White;
+
+        let a8 = sq(0, 7);
+        let a7 = sq(0, 6);
+        let a6 = sq(0, 5);
+        let b6 = sq(1, 5);
+
+        put(&mut pos, a8, Color::Black, PieceKind::King);
+        put(&mut pos, a7, Color::White, PieceKind::Pawn);
+        put(&mut pos, b6, Color::White, PieceKind::King);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        let mv = Move::new(b6, a6);
+        game.try_play_move(mv);
+        debug_assert_eq!(game.gamestatus, GameStatus::Stalemate);
+    }
+
+    #[test]
+    fn test_checkmate() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::White;
+
+        let a8 = sq(0, 7);
+        let h7 = sq(7, 6);
+        let b7 = sq(1, 6);
+        let b6 = sq(1, 5);
+
+        put(&mut pos, a8, Color::Black, PieceKind::King);
+        put(&mut pos, h7, Color::White, PieceKind::Queen);
+        put(&mut pos, b6, Color::White, PieceKind::King);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        let mv = Move::new(h7, b7);
+        game.try_play_move(mv);
+        debug_assert_eq!(
+            game.gamestatus,
+            GameStatus::Checkmate {
+                winner: (Color::White)
+            }
+        );
+    }
+
+    #[test]
+    fn test_insufficient() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::White;
+
+        let a8 = sq(0, 7);
+        let b6 = sq(7, 6);
+        let f7 = sq(5, 6);
+        let a2 = sq(0, 1);
+
+        put(&mut pos, a8, Color::Black, PieceKind::King);
+        put(&mut pos, f7, Color::Black, PieceKind::Rook);
+        put(&mut pos, b6, Color::White, PieceKind::King);
+        put(&mut pos, a2, Color::White, PieceKind::Bishop);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        let mv = Move::new(a2, f7);
+        game.try_play_move(mv);
+        debug_assert_eq!(game.gamestatus, GameStatus::DrawInsufficientMaterial);
+    }
+
+    #[test]
+    fn test_insufficient_same_color_bishops() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::White;
+
+        let a8 = sq(0, 7);
+        let b6 = sq(7, 6);
+        let f7 = sq(5, 6);
+        let a2 = sq(0, 1);
+        let d7 = sq(3, 6);
+
+        put(&mut pos, a8, Color::Black, PieceKind::King);
+        put(&mut pos, f7, Color::Black, PieceKind::Rook);
+        put(&mut pos, d7, Color::Black, PieceKind::Bishop);
+        put(&mut pos, b6, Color::White, PieceKind::King);
+        put(&mut pos, a2, Color::White, PieceKind::Bishop);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        let mv = Move::new(a2, f7);
+        game.try_play_move(mv);
+        debug_assert_eq!(game.gamestatus, GameStatus::DrawInsufficientMaterial);
+    }
+
+    #[test]
+    fn test_not_insufficient_opposite_color_bishops() {
+        let mut pos = Position::empty();
+        pos.player_to_move = Color::White;
+
+        let a8 = sq(0, 7);
+        let b6 = sq(7, 6);
+        let f7 = sq(5, 6);
+        let a2 = sq(0, 1);
+        let e7 = sq(4, 6);
+
+        put(&mut pos, a8, Color::Black, PieceKind::King);
+        put(&mut pos, f7, Color::Black, PieceKind::Rook);
+        put(&mut pos, e7, Color::Black, PieceKind::Bishop);
+        put(&mut pos, b6, Color::White, PieceKind::King);
+        put(&mut pos, a2, Color::White, PieceKind::Bishop);
+
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        let mv = Move::new(a2, f7);
+        game.try_play_move(mv);
+        debug_assert_eq!(game.gamestatus, GameStatus::Ongoing);
+    }
+
+    #[test]
+    fn draw_50_moves() {
+        let mut pos = Position::starting_position();
+        pos.half_move_clock = 99;
+
+        let mut game = Game {
+            position: pos,
+            gamestate: GameState::new(),
+            gamestatus: GameStatus::Ongoing,
+        };
+
+        // Noch nicht Draw
+        game.gamestatus = game.compute_status();
+        assert_eq!(game.gamestatus, GameStatus::Ongoing);
+
+        // Grenzwert
+        game.position.half_move_clock = 100;
+        game.gamestatus = game.compute_status();
+        assert_eq!(game.gamestatus, GameStatus::Draw50Moves);
+    }
+}
