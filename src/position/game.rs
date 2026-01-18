@@ -329,11 +329,9 @@ mod tests {
             gamestatus: GameStatus::Ongoing,
         };
 
-        // Noch nicht Draw
         game.gamestatus = game.compute_status();
         assert_eq!(game.gamestatus, GameStatus::Ongoing);
 
-        // Grenzwert
         game.position.half_move_clock = 100;
         game.gamestatus = game.compute_status();
         assert_eq!(game.gamestatus, GameStatus::Draw50Moves);
