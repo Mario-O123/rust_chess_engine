@@ -20,6 +20,28 @@ pub struct GameState {
     pub history: Vec<State>,
 }
 
+impl GameState {
+    pub fn new() -> Self {
+        Self {
+            history: Vec::new(),
+        }
+    }
+
+    pub fn save_history(&mut self, pos: &Position) {
+        self.history.push(State {
+            board: pos.board,
+            player_to_move: pos.player_to_move,
+            en_passant_square: pos.en_passant_square,
+            castling_rights: pos.castling_rights,
+            zobrist: pos.zobrist,
+            half_move_clock: pos.half_move_clock,
+            move_counter: pos.move_counter,
+            king_sq: pos.king_sq,
+            piece_counter: pos.piece_counter,
+        });
+    }
+}
+
 // Move is not implemented yet
 pub struct Undo {
     pub mv: Move,
