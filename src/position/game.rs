@@ -336,4 +336,31 @@ mod tests {
         game.gamestatus = game.compute_status();
         assert_eq!(game.gamestatus, GameStatus::Draw50Moves);
     }
+
+    #[test]
+    fn check_draw_repetition() {
+        let g1 = sq(6, 0);
+        let f3 = sq(5, 2);
+        let g8 = sq(6, 7);
+        let f6 = sq(5, 5);
+
+        let mut game = Game::new();
+
+        let mv_w1 = Move::new(g1, f3);
+        let mv_w2 = Move::new(f3, g1);
+        let mv_b1 = Move::new(g8, f6);
+        let mv_b2 = Move::new(f6, g8);
+
+        game.try_play_move(mv_w1);
+        game.try_play_move(mv_b1);
+        game.try_play_move(mv_w2);
+        game.try_play_move(mv_b2);
+        debug_assert_eq!(game.gamestatus, GameStatus::Ongoing);
+
+        game.try_play_move(mv_w1);
+        game.try_play_move(mv_b1);
+        game.try_play_move(mv_w2);
+        game.try_play_move(mv_b2);
+        debug_assert_eq!(game.gamestatus, GameStatus::DrawRepetition);
+    }
 }
