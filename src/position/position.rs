@@ -455,13 +455,19 @@ impl Position {
                 let rook_from = from + 3;
                 let rook_to = from + 1;
 
-                //zobrist rook move
-                let rook = Piece {
-                    color: moving_piece.color,
-                    kind: PieceKind::Rook,
+                let rook_piece = match self.board[rook_from] {
+                    Cell::Piece(p) => p,
+                    _ => {
+                        debug_assert!(false, "castling: rook missing on rook_from");
+                        //fallback prohibits a half turn in release build
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                    }
                 };
-                self.zobrist ^= Self::zob_piece(rook, rook_from);
-                self.zobrist ^= Self::zob_piece(rook, rook_to);
+
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
 
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
@@ -470,12 +476,18 @@ impl Position {
                 let rook_from = from - 4;
                 let rook_to = from - 1;
 
-                let rook = Piece {
-                    color: moving_piece.color,
-                    kind: PieceKind::Rook,
+                let rook_piece = match self.board[rook_from] {
+                    Cell::Piece(p) => p,
+                    _ => {
+                        debug_assert!(false, "castling: rook missing on rook_from");
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                    }
                 };
-                self.zobrist ^= Self::zob_piece(rook, rook_from);
-                self.zobrist ^= Self::zob_piece(rook, rook_to);
+
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
 
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
@@ -546,6 +558,10 @@ impl Position {
                     from as i32 - 10
                 };
                 debug_assert!((0..120).contains(&ep_sq));
+                let ep_sq = ep_sq as usize;
+                debug_assert!(self.board[ep_sq] != Cell::Offboard);
+                debug_assert!(SQUARE120_TO_SQUARE64[ep_sq] >= 0);
+
                 self.en_passant_square = Some(Square::new(ep_sq as u8));
             }
 
@@ -605,6 +621,10 @@ impl Position {
         //side to move
         self.player_to_move = self.player_to_move.opposite();
         self.zobrist ^= ZOBRIST.zobrist_side_to_move;
+
+        debug_assert_eq!(self.zobrist, self.compute_zobrist());
+        debug_assert_eq!(self.piece_counter, self.compute_piece_counter());
+        debug_assert_eq!(self.king_sq, self.compute_king_sq());
 
         /*removed
         self.piece_counter = self.compute_piece_counter();
