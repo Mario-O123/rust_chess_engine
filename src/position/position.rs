@@ -1,3 +1,4 @@
+use super::state::Undo;
 pub use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use crate::movegen::Move;
@@ -385,6 +386,12 @@ impl Position {
             "make_move: wrong side moved"
         );
 
+        //castling snapshot + old EP hash remove
+        let old_castling = self.castling_rights;
+        if let Some(old_ep) = self.en_passant_square {
+            self.zobrist ^= Self::zob_ep(old_ep);
+        }
+
         //EP square is only valid for the immediate newxt Move
         self.en_passant_square = None;
 
@@ -396,16 +403,8 @@ impl Position {
         if mv.is_en_passant() {
             //captured square becomes empty
             let captured_sq = if moving_piece.color == Color::White {
-                debug_assert!(
-                    to >= 10,
-                    "en passant: to too small for white capture square"
-                );
                 to - 10
             } else {
-                debug_assert!(
-                    to + 10 < 120,
-                    "en passant: to too large for black capture square"
-                );
                 to + 10
             };
 
@@ -415,17 +414,36 @@ impl Position {
                 "en passant: captured piece is not an enemy pawn"
             );
 
-            if let Cell::Piece(p) = self.board[captured_sq] {
-                captured_piece = Some(p);
-            }
-            self.board[captured_sq] = Cell::Empty;
+            let captured_pawn = match self.board[captured_sq] {
+                Cell::Piece(p) => p,
+                _ => {
+                    debug_assert!(false);
+                    return;
+                }
+            };
+
+            captured_piece = Some(captured_pawn);
             did_capture = true;
 
+            //incremental zobrist + piece counter
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+            self.zobrist ^= Self::zob_piece(captured_pawn, captured_sq);
+            self.zobrist ^= Self::zob_piece(moving_piece, to);
+
+            let ci = Self::pc_idx(captured_pawn);
+            debug_assert!(self.piece_counter[ci] > 0);
+            self.piece_counter[ci] -= 1;
+
+            self.board[captured_sq] = Cell::Empty;
             self.board[from] = Cell::Empty;
             self.board[to] = Cell::Piece(moving_piece);
         }
         //castling
         else if mv.is_castling() {
+            //zobrist king move
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+            self.zobrist ^= Self::zob_piece(moving_piece, to);
+
             //king move
             self.board[from] = Cell::Empty;
             self.board[to] = Cell::Piece(moving_piece);
@@ -436,21 +454,59 @@ impl Position {
                 //kingside
                 let rook_from = from + 3;
                 let rook_to = from + 1;
+
+                let rook_piece = match self.board[rook_from] {
+                    Cell::Piece(p) => p,
+                    _ => {
+                        debug_assert!(false, "castling: rook missing on rook_from");
+                        //fallback prohibits a half turn in release build
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                    }
+                };
+
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
+
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
             } else if king_shift == -2 {
                 //queenside
                 let rook_from = from - 4;
                 let rook_to = from - 1;
+
+                let rook_piece = match self.board[rook_from] {
+                    Cell::Piece(p) => p,
+                    _ => {
+                        debug_assert!(false, "castling: rook missing on rook_from");
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                    }
+                };
+
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
+                self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
+
                 self.board[rook_to] = self.board[rook_from];
                 self.board[rook_from] = Cell::Empty;
             }
         }
         //Normal, Promotion, DoublePawnPush
         else {
+            //moving piece leaves from
+            self.zobrist ^= Self::zob_piece(moving_piece, from);
+
             if let Cell::Piece(p) = self.board[to] {
                 did_capture = true;
                 captured_piece = Some(p);
+
+                //remove captured from has + decrease counter
+                self.zobrist ^= Self::zob_piece(p, to);
+                let captured_idx = Self::pc_idx(p);
+                debug_assert!(self.piece_counter[captured_idx] > 0);
+                self.piece_counter[captured_idx] -= 1;
             }
 
             //remove captured piece = normal capture
@@ -461,15 +517,37 @@ impl Position {
             if mv.is_promotion() {
                 let promo_kind = match mv.promotion_piece() {
                     Some(p) => p.to_piece_kind(),
-                    None => panic!("promotion move must carry promotion piece"), //or Queen as fallback maybe?
+                    None => {
+                        debug_assert!(false, "promotion move must carry promotion piece");
+                        return; //or fallback Queen
+                    }
                 };
 
-                self.board[to] = Cell::Piece(Piece {
+                let promoted = Piece {
                     color: moving_piece.color,
                     kind: promo_kind,
-                });
+                };
+
+                self.board[to] = Cell::Piece(promoted);
+
+                //hash promoted piece + counters pawn promo++
+                self.zobrist ^= Self::zob_piece(promoted, to);
+
+                let pawn = Piece {
+                    color: moving_piece.color,
+                    kind: PieceKind::Pawn,
+                };
+                let pawn_idx = Self::pc_idx(pawn);
+                debug_assert!(self.piece_counter[pawn_idx] > 0);
+                self.piece_counter[pawn_idx] -= 1;
+
+                let queen_idx = Self::pc_idx(promoted);
+                self.piece_counter[queen_idx] = self.piece_counter[queen_idx].saturating_add(1);
             } else {
-                self.board[to] = Cell::Piece((moving_piece));
+                self.board[to] = Cell::Piece(moving_piece);
+
+                //moving piece arrives
+                self.zobrist ^= Self::zob_piece(moving_piece, to);
             }
 
             //if double pawn push, set the EP target
@@ -480,6 +558,10 @@ impl Position {
                     from as i32 - 10
                 };
                 debug_assert!((0..120).contains(&ep_sq));
+                let ep_sq = ep_sq as usize;
+                debug_assert!(self.board[ep_sq] != Cell::Offboard);
+                debug_assert!(SQUARE120_TO_SQUARE64[ep_sq] >= 0);
+
                 self.en_passant_square = Some(Square::new(ep_sq as u8));
             }
 
@@ -519,6 +601,12 @@ impl Position {
             }
         }
 
+        //castling has delta + add new EP hash
+        Self::xor_castling_delta(&mut self.zobrist, old_castling, self.castling_rights);
+        if let Some(ep) = self.en_passant_square {
+            self.zobrist ^= Self::zob_ep(ep);
+        }
+
         //update halfmove clock, fullmove counter
         if moving_piece.kind == PieceKind::Pawn || did_capture {
             self.half_move_clock = 0;
@@ -532,36 +620,240 @@ impl Position {
 
         //side to move
         self.player_to_move = self.player_to_move.opposite();
+        self.zobrist ^= ZOBRIST.zobrist_side_to_move;
 
+        debug_assert_eq!(self.zobrist, self.compute_zobrist());
+        debug_assert_eq!(self.piece_counter, self.compute_piece_counter());
+        debug_assert_eq!(self.king_sq, self.compute_king_sq());
+
+        /*removed
         self.piece_counter = self.compute_piece_counter();
-        self.zobrist = self.compute_zobrist();
+        self.zobrist = self.compute_zobrist(); */
+    }
+
+    //helpers for make_move
+
+    //we could also use square120_to_square64 but we would have more overhead in the hotpath, look into it
+    #[inline]
+    fn sq64(sq120: usize) -> usize {
+        let s = SQUARE120_TO_SQUARE64[sq120];
+        debug_assert!(s >= 0);
+        s as usize
+    }
+
+    #[inline]
+    fn zob_piece(piece: Piece, sq120: usize) -> u64 {
+        let s64 = Self::sq64(sq120);
+        ZOBRIST.zobrist_values[piece.color.idx()][piece.kind.idx()][s64]
+    }
+
+    #[inline]
+    fn zob_ep(ep_sq120: Square) -> u64 {
+        let s64 = Self::sq64(ep_sq120.as_usize());
+        let file = s64 % BOARD_LENGTH;
+        ZOBRIST.zobrist_enpassant[file]
+    }
+
+    #[inline]
+    fn pc_idx(piece: Piece) -> usize {
+        piece.kind.idx() + piece.color.idx() * 6
+    }
+
+    #[inline]
+    fn xor_castling_delta(hash: &mut u64, old: u8, new: u8) {
+        const WK: u8 = 0b0001;
+        const WQ: u8 = 0b0010;
+        const BK: u8 = 0b0100;
+        const BQ: u8 = 0b1000;
+        let flags = [WK, WQ, BK, BQ];
+        for (i, f) in flags.iter().enumerate() {
+            if (old ^ new) & f != 0 {
+                *hash ^= ZOBRIST.zobrist_castling[i]
+            }
+        }
+    }
+
+    pub fn make_move_with_undo(&mut self, mv: Move) -> Undo {
+        let from = mv.from_sq();
+        let to = mv.to_sq();
+
+        let moving_piece = match self.board[from] {
+            Cell::Piece(p) => p,
+            _ => {
+                debug_assert!(false, "make_move_with_undo: from-square has no piece");
+                return Undo {
+                    mv,
+                    moving_piece: Piece {
+                        color: self.player_to_move,
+                        kind: PieceKind::Pawn,
+                    },
+                    captured: None,
+                    captured_sq: None,
+                    rook_from: None,
+                    rook_to: None,
+                    prev_player_to_move: self.player_to_move,
+                    prev_ep_sq: self.en_passant_square,
+                    prev_castling: self.castling_rights,
+                    prev_zobrist: self.zobrist,
+                    prev_hm_clock: self.half_move_clock,
+                    prev_move_counter: self.move_counter,
+                    prev_king_sq: self.king_sq,
+                    prev_piece_counter: self.piece_counter,
+                };
+            }
+        };
+
+        //learn capture info before make_move
+        let (captured, captured_sq) = if mv.is_en_passant() {
+            let cap_sq = if moving_piece.color == Color::White {
+                to - 10
+            } else {
+                to + 10
+            };
+            let cap = match self.board[cap_sq] {
+                Cell::Piece(p) => Some(p),
+                _ => None,
+            };
+            (cap, Some(cap_sq))
+        } else {
+            match self.board[to] {
+                Cell::Piece(p) => (Some(p), None),
+                _ => (None, None),
+            }
+        };
+
+        //castling rook squares, if castling
+        let (rook_from, rook_to) = if mv.is_castling() {
+            let shift = to as i32 - from as i32;
+            if shift == 2 {
+                (Some(from + 3), Some(from + 1)) //kingside
+            } else if shift == -2 {
+                (Some(from - 4), Some(from - 1)) //queenside
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+
+        //snapshot of the old state
+        let undo = Undo {
+            mv,
+            moving_piece,
+            captured,
+            captured_sq,
+            rook_from,
+            rook_to,
+
+            prev_player_to_move: self.player_to_move,
+            prev_ep_sq: self.en_passant_square,
+            prev_castling: self.castling_rights,
+            prev_zobrist: self.zobrist,
+            prev_hm_clock: self.half_move_clock,
+            prev_move_counter: self.move_counter,
+            prev_king_sq: self.king_sq,
+            prev_piece_counter: self.piece_counter,
+        };
+
+        //apply move
+        self.make_move(mv);
+
+        undo
+    }
+
+    pub fn undo_move(&mut self, undo: Undo) {
+        let from = undo.mv.from_sq();
+        let to = undo.mv.to_sq();
+
+        //revert board
+        if undo.mv.is_castling() {
+            //revert king
+            self.board[from] = Cell::Piece(undo.moving_piece);
+            self.board[to] = Cell::Empty;
+
+            let (rf, rt) = match (undo.rook_from, undo.rook_to) {
+                (Some(rf), Some(rt)) => (rf, rt),
+                _ => {
+                    debug_assert!(false, "undo_move: rook_from/rook_to missing for castling");
+                    return;
+                }
+            };
+
+            //revert rook of rook_to to rook_from
+            let rook_piece = match self.board[rt] {
+                Cell::Piece(p) => p,
+                _ => {
+                    debug_assert!(false, "undo_move: rook missing on rook_to");
+                    return;
+                }
+            };
+
+            self.board[rt] = Cell::Empty;
+            self.board[rf] = Cell::Piece(rook_piece);
+        } else if undo.mv.is_en_passant() {
+            //revert pawn
+            self.board[from] = Cell::Piece(undo.moving_piece);
+            self.board[to] = Cell::Empty;
+
+            let cap_sq = match undo.captured_sq {
+                Some(sq) => sq,
+                None => {
+                    debug_assert!(false, "undo_move: captured_sq missind for en-passant");
+                    return;
+                }
+            };
+
+            let cap = match undo.captured {
+                Some(p) => p,
+                None => {
+                    debug_assert!(false, "undo_move: cpatured piece missing for en-passant");
+                    return;
+                }
+            };
+
+            self.board[cap_sq] = Cell::Piece(cap);
+        } else {
+            //normal, capture, promotion
+            //from gets original moving_piece (pawn in promotion)
+            self.board[from] = Cell::Piece(undo.moving_piece);
+
+            //to gets captured or Empty
+            self.board[to] = match undo.captured {
+                Some(p) => Cell::Piece(p),
+                None => Cell::Empty,
+            };
+        }
+
+        //restore state
+        self.player_to_move = undo.prev_player_to_move;
+        self.en_passant_square = undo.prev_ep_sq;
+        self.castling_rights = undo.prev_castling;
+        self.zobrist = undo.prev_zobrist;
+        self.half_move_clock = undo.prev_hm_clock;
+        self.move_counter = undo.prev_move_counter;
+        self.king_sq = undo.prev_king_sq;
+        self.piece_counter = undo.prev_piece_counter;
     }
 }
 
 #[cfg(test)]
-mod make_move_tests {
+pub(super) mod test_util {
     use super::*;
-    use crate::movegen::{Move, PromotionPiece};
-
-    const WK: u8 = 0b0001;
-    const WQ: u8 = 0b0010;
-    const BK: u8 = 0b0100;
-    const BQ: u8 = 0b1000;
 
     //helpers for testing
 
     //turns chess field like e2 into our mailbox120 index
-    fn sq_str(s: &str) -> usize {
+    pub(super) fn sq_str(s: &str) -> usize {
         crate::board::conversion::square120_from_string(s).unwrap()
     }
 
     //puts a specific piece on a field
-    fn put(pos: &mut Position, sq: &str, color: Color, kind: PieceKind) {
+    pub(super) fn put(pos: &mut Position, sq: &str, color: Color, kind: PieceKind) {
         pos.board[sq_str(sq)] = Cell::Piece(Piece { color, kind });
     }
 
     //builds a specified safe test position
-    fn with_kings(mut pos: Position) -> Position {
+    pub(super) fn with_kings(mut pos: Position) -> Position {
         put(&mut pos, "e1", Color::White, PieceKind::King);
         put(&mut pos, "e8", Color::Black, PieceKind::King);
 
@@ -570,6 +862,18 @@ mod make_move_tests {
         pos.zobrist = pos.compute_zobrist();
         pos
     }
+}
+
+#[cfg(test)]
+mod make_move_tests {
+    use super::test_util::*;
+    use super::*;
+    use crate::movegen::{Move, PromotionPiece};
+
+    const WK: u8 = 0b0001;
+    const WQ: u8 = 0b0010;
+    const BK: u8 = 0b0100;
+    const BQ: u8 = 0b1000;
 
     #[test]
     fn normal_move_updates_board_turn_and_halfmove() {
@@ -731,5 +1035,129 @@ mod make_move_tests {
 
         assert_eq!(pos.castling_rights & WQ, 0);
         assert_ne!(pos.castling_rights & WK, 0);
+    }
+}
+
+#[cfg(test)]
+mod undo_tests {
+    use super::test_util::*;
+    use super::*;
+    use crate::movegen::{Move, PromotionPiece};
+
+    const WK: u8 = 0b0001;
+    const WQ: u8 = 0b0010;
+
+    #[test]
+    fn normal_move_roundtrip_restores_position_and_undo_metadata() {
+        let mut pos = Position::starting_position();
+        let before = pos.clone();
+
+        let mv = Move::new(sq_str("g1"), sq_str("f3"));
+        let undo = pos.make_move_with_undo(mv);
+
+        //make_move_with_undo metadata
+        assert_eq!(undo.prev_player_to_move, before.player_to_move);
+        assert_eq!(undo.prev_ep_sq, before.en_passant_square);
+        assert_eq!(undo.prev_castling, before.castling_rights);
+        assert_eq!(undo.prev_zobrist, before.zobrist);
+        assert_eq!(undo.prev_piece_counter, before.piece_counter);
+        assert_eq!(undo.captured, None);
+        assert_eq!(undo.captured_sq, None);
+        assert_eq!(undo.rook_from, None);
+        assert_eq!(undo.rook_to, None);
+
+        pos.undo_move(undo);
+
+        //undo_move should restore everything
+        assert_eq!(pos, before);
+    }
+
+    #[test]
+    fn capture_roundtrip_restores_position_and_sets_captured_piece() {
+        let mut pos = with_kings(Position::empty());
+        put(&mut pos, "e4", Color::White, PieceKind::Queen);
+        put(&mut pos, "e5", Color::Black, PieceKind::Knight);
+        pos.player_to_move = Color::White;
+
+        //refresh
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let before = pos.clone();
+
+        let mv = Move::new(sq_str("e4"), sq_str("e5"));
+        let undo = pos.make_move_with_undo(mv);
+
+        assert_eq!(
+            undo.captured,
+            Some(Piece {
+                color: Color::Black,
+                kind: PieceKind::Knight
+            })
+        );
+        assert_eq!(undo.captured_sq, None);
+
+        pos.undo_move(undo);
+        assert_eq!(pos, before);
+    }
+
+    #[test]
+    fn castling_roundtrip_restores_position_and_sets_rook_squares() {
+        let mut pos = with_kings(Position::empty());
+
+        //white kingside castling setup
+        put(&mut pos, "h1", Color::White, PieceKind::Rook);
+        pos.castling_rights = WK | WQ;
+        pos.player_to_move = Color::White;
+
+        //refresh
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let before = pos.clone();
+
+        let mv = Move::new_castling(sq_str("e1"), sq_str("g1"));
+        let undo = pos.make_move_with_undo(mv);
+
+        // rook squares should be present in Undo
+        assert_eq!(undo.rook_from, Some(sq_str("h1")));
+        assert_eq!(undo.rook_to, Some(sq_str("f1")));
+        assert_eq!(undo.captured, None);
+        assert_eq!(undo.captured_sq, None);
+
+        pos.undo_move(undo);
+        assert_eq!(pos, before);
+    }
+
+    #[test]
+    fn promotion_roundtrip_restores_pawn_and_state() {
+        let mut pos = with_kings(Position::empty());
+
+        put(&mut pos, "a7", Color::White, PieceKind::Pawn);
+        pos.player_to_move = Color::White;
+
+        //refresh
+        pos.king_sq = pos.compute_king_sq();
+        pos.piece_counter = pos.compute_piece_counter();
+        pos.zobrist = pos.compute_zobrist();
+
+        let before = pos.clone();
+
+        let mv = Move::new_promotion(sq_str("a7"), sq_str("a8"), PromotionPiece::Queen);
+        let undo = pos.make_move_with_undo(mv);
+
+        //moving_piece should be the original pawn = important for undo of promotions
+        assert_eq!(
+            undo.moving_piece,
+            Piece {
+                color: Color::White,
+                kind: PieceKind::Pawn
+            }
+        );
+
+        pos.undo_move(undo);
+        assert_eq!(pos, before);
     }
 }
