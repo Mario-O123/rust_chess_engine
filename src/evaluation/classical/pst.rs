@@ -1,3 +1,5 @@
+// All Values in Centipawns
+
 pub(crate) const PST_PAWN: [i32; 64] = [
     0, 0, 0, 0, 0, 0, 0, 0, // Rank 1
     5, 10, 10, -20, -20, 10, 10, 5, // Rank 2
