@@ -25,7 +25,7 @@ impl Game {
     pub fn new() -> Self {
         let position = Position::starting_position();
         let mut gamestate = GameState::new();
-        gamestate.save_history(&position);
+        gamestate.reset(&position);
 
         Self {
             position,
@@ -33,6 +33,10 @@ impl Game {
             gamestatus: GameStatus::Ongoing,
         }
     }
+    pub fn position(&self) -> &Position {&self.position}
+    pub fn position_mut(&mut self) -> &mut Position {&mut self.position}
+    pub fn status(&self) -> GameStatus {self.gamestatus}
+    pub fn gamestate(&self) -> &GameState {&self.gamestate}
 
     //checks all draw and checkmate options
     fn compute_status(&self) -> GameStatus {
@@ -48,9 +52,18 @@ impl Game {
             return;
         }
 
-        self.position.make_move(mv);
-        self.gamestate.save_history(&self.position);
+        let undo = self.position.make_move_with_undo(mv);
+        self.gamestate.record_after_make(undo, &self.position);
         self.gamestatus = self.compute_status();
+    }
+
+    pub fn undo(&mut self) -> bool {
+        let Some(undo) = self.gamestate.pop_undo() else {
+            return false;
+        };
+        self.position.undo_move(undo);
+        self.gamestatus = self.compute_status();
+        true
     }
 
     // half_move_clock has to reset when a piece is captured
