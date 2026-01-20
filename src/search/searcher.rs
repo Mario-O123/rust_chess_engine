@@ -5,8 +5,7 @@ use crate::movegen::{
     generate_legal_captures_in_place, 
     generate_legal_moves_in_place,
     is_in_check,
-    Move,
-};
+    Move,};
 use crate::position::{Cell, Color, PieceKind, Position};
 
 const INF: i32 = 50000;
@@ -89,7 +88,7 @@ impl <E: Evaluator> Searcher<E> {
         let mut best_mv = Move::NULL;
         let mut best = -INF;
         let mut alpha = -INF;
-        let mut beta = -INF;
+        let mut beta = INF;
 
         for mv in self.move_buf.iter().copied() {
             let undo = pos.make_move_with_undo(mv);
@@ -185,7 +184,7 @@ impl <E: Evaluator> Searcher<E> {
         if is_in_check(pos, stm) {
             generate_legal_moves_in_place(pos, &mut self.move_buf);
             if self.move_buf.is_empty() {
-                return -MATE + ply;
+                return -MATE + ply as i32;
             }
 
             self.move_buf.sort_by_key(|&m| -self.move_order_score(pos, m));
@@ -304,7 +303,7 @@ impl <E: Evaluator> Searcher<E> {
         let mut s = 0;
 
         if mv.is_promotion() {
-            s += 9000;
+            s += 90000;
         }
 
         if mv.is_en_passant() {
