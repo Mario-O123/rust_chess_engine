@@ -198,6 +198,8 @@ mod tests {
             gamestatus: GameStatus::Ongoing,
         };
 
+        game.gamestate.reset(&game.position);
+
         let mv = Move::new(b6, a6);
         game.try_play_move(mv);
         debug_assert_eq!(game.gamestatus, GameStatus::Stalemate);
@@ -226,6 +228,8 @@ mod tests {
             gamestate: GameState::new(),
             gamestatus: GameStatus::Ongoing,
         };
+
+        game.gamestate.reset(&game.position);
 
         let mv = Move::new(h7, b7);
         game.try_play_move(mv);
@@ -262,6 +266,8 @@ mod tests {
             gamestatus: GameStatus::Ongoing,
         };
 
+        game.gamestate.reset(&game.position);
+
         let mv = Move::new(a2, f7);
         game.try_play_move(mv);
         debug_assert_eq!(game.gamestatus, GameStatus::DrawInsufficientMaterial);
@@ -294,6 +300,8 @@ mod tests {
             gamestatus: GameStatus::Ongoing,
         };
 
+        game.gamestate.reset(&game.position);
+
         let mv = Move::new(a2, f7);
         game.try_play_move(mv);
         debug_assert_eq!(game.gamestatus, GameStatus::DrawInsufficientMaterial);
@@ -325,6 +333,7 @@ mod tests {
             gamestate: GameState::new(),
             gamestatus: GameStatus::Ongoing,
         };
+        game.gamestate.reset(&game.position);
 
         let mv = Move::new(a2, f7);
         game.try_play_move(mv);
@@ -341,6 +350,8 @@ mod tests {
             gamestate: GameState::new(),
             gamestatus: GameStatus::Ongoing,
         };
+
+        game.gamestate.reset(&game.position);
 
         game.gamestatus = game.compute_status();
         assert_eq!(game.gamestatus, GameStatus::Ongoing);
