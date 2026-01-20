@@ -1,5 +1,4 @@
 use crate::position::Position;
-use anyhow::Result;
 
 pub mod classical;
 #[cfg(feature = "nn")]
@@ -11,7 +10,7 @@ pub trait Evaluator {
 pub enum EvalEngine {
     Classical(classical::ClassicalEval),
     #[cfg(feature = "nn")]
-    Neuronal(neuronal::NeuralEval),
+    Neural(neural::NeuralEval),
 }
 
 impl EvalEngine {
@@ -32,7 +31,3 @@ impl EvalEngine {
         }
     }
 }
-
-
-
-

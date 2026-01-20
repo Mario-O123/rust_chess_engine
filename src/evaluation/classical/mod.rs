@@ -6,6 +6,7 @@ use pst::*;
 
 pub struct ClassicalEval;
 
+// Values in Centipawns
 const PAWN_VALUE: i32 = 100;
 const KNIGHT_VALUE: i32 = 320;
 const BISHOP_VALUE: i32 = 330;
@@ -81,8 +82,8 @@ impl Evaluator for ClassicalEval {
         let mut bishop_counter_white = 0;
         let mut bishop_counter_black = 0;
         let mut phase_counter = 0;
-        let mut white_king_sq64: usize = 0;
-        let mut black_king_sq64: usize = 0;
+        let mut white_king_sq64: usize = 64;
+        let mut black_king_sq64: usize = 64;
 
         // Bonus for piece and square depending on PST
         for (sq, cell) in pos.board.iter().enumerate() {
@@ -116,8 +117,10 @@ impl Evaluator for ClassicalEval {
             }
         }
 
-        // alarm if there are no 2 kings on the board
-        debug_assert!(white_king_sq64 < 64 && black_king_sq64 < 64);
+        debug_assert!(
+            white_king_sq64 < 64 && black_king_sq64 < 64,
+            "missing king(s)"
+        );
 
         // Kings are handled seperatly because of 2 PSTs
         // The 2 PSTs are blend, depending on non-pawn-pieces on board
@@ -160,7 +163,7 @@ mod tests {
     fn eval_starting_position() {
         let pos = Position::starting_position();
         let mut class_eval = ClassicalEval::new();
-        println!("{}", class_eval.evaluate(&pos));
+        println!("Starting position eval: {}", class_eval.evaluate(&pos));
         assert_eq!(class_eval.evaluate(&pos), 10);
     }
 
@@ -178,7 +181,7 @@ mod tests {
         put(&mut pos, h2, Color::Black, PieceKind::Queen);
         put(&mut pos, h8, Color::Black, PieceKind::King);
 
-        println!("{}", class_eval.evaluate(&pos));
+        println!("Winning Position Black eval: {}", class_eval.evaluate(&pos));
         assert!(class_eval.evaluate(&pos) < 0);
     }
 
@@ -195,7 +198,7 @@ mod tests {
         put(&mut pos, h4, Color::White, PieceKind::Rook);
         put(&mut pos, h5, Color::White, PieceKind::King);
 
-        println!("{}", class_eval.evaluate(&pos));
+        println!("Winning position white eval: {}", class_eval.evaluate(&pos));
         assert!(class_eval.evaluate(&pos) > 0);
     }
 
@@ -213,7 +216,7 @@ mod tests {
         put(&mut pos, e4, Color::White, PieceKind::Knight);
         put(&mut pos, a8, Color::Black, PieceKind::Knight);
 
-        println!("{}", class_eval.evaluate(&pos));
+        println!("CenterKnight eval: {}", class_eval.evaluate(&pos));
         assert!(class_eval.evaluate(&pos) > 0);
     }
 }
