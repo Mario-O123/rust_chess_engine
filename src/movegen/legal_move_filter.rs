@@ -8,7 +8,7 @@ pub fn filter_legal_moves(position: &Position, moves: &[Move]) -> Vec<Move> {
     let mut pos = position.clone();
 
     for mv in moves.iter().copied() {
-        let undo = pos.make_move(mv);
+        let undo = pos.make_move_with_undo(mv);
         
         let moved_color = pos.player_to_move.opposite();
 
