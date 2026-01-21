@@ -9,7 +9,7 @@ use crate::movegen::{
 use crate::position::{Cell, Color, PieceKind, Position};
 
 const INF: i32 = 50000;
-const MATE:i32 = 30000;
+const MATE: i32 = 30_000;
 
 #[derive(Clone, Copy)]
 pub struct SearchLimits {
@@ -18,7 +18,7 @@ pub struct SearchLimits {
     pub max_time_ms: Option<u64>,
 }
 
-pub struct Searchresult {
+pub struct SearchResult {
     pub best_move: Move,
     pub score_cp: i32,
     pub depth: u8,
@@ -44,7 +44,7 @@ impl <E: Evaluator> Searcher<E> {
             move_buf: Vec::new() }
     }
 
-    pub fn search(&mut self, pos: &Position, limits: SearchLimits) -> Searchresult {
+    pub fn search(&mut self, pos: &Position, limits: SearchLimits) -> SearchResult {
         self.limits = limits;
         self.nodes = 0;
         self.start = Instant::now();
@@ -54,6 +54,7 @@ impl <E: Evaluator> Searcher<E> {
 
         let mut best_move = Move::NULL;
         let mut best_score = -INF;
+        let mut reached_depth = 0;
 
         for d in 1..=self.limits.max_depth {
             let (mv, sc) = self.root(pos, d as i32);
@@ -63,21 +64,24 @@ impl <E: Evaluator> Searcher<E> {
 
             best_move = mv;
             best_score = sc;
+            reached_depth = d;
 
             if self.should_stop() {
                 break;
             }
         }
-        Searchresult { 
+        SearchResult { 
             best_move, 
             score_cp: best_score, 
-            depth: self.limits.max_depth, 
+            depth: reached_depth, 
             nodes: self.nodes }
 
     }
 
     fn root (&mut self, pos: &Position, depth: i32) -> (Move, i32) {
+        self.move_buf.clear();
         generate_legal_moves_in_place(pos, &mut self.move_buf);
+        
         if self.move_buf.is_empty() {
             return (Move::NULL, self.terminal_score(pos, 0));
         }
@@ -124,7 +128,7 @@ impl <E: Evaluator> Searcher<E> {
     ) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return 0;
+            return alpha;
         }
 
         //draw rules 
@@ -137,8 +141,9 @@ impl <E: Evaluator> Searcher<E> {
         if depth <= 0 {
             return self.quiescence(pos, ply, alpha, beta);
         }
-
+        self.move_buf.clear();
         generate_legal_moves_in_place(pos, &mut self.move_buf);
+       
         if self.move_buf.is_empty() {
             return self.terminal_score(pos, ply);
         }
@@ -152,7 +157,7 @@ impl <E: Evaluator> Searcher<E> {
             let score = -self.negamax(pos, depth - 1, ply + 1, -beta, -alpha);
 
             self.history.pop();
-            pos.undo_move(mv);
+            pos.undo_move(undo);
 
             if score > alpha {
                 alpha = score;
@@ -176,13 +181,15 @@ impl <E: Evaluator> Searcher<E> {
     ) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return 0;
+            return alpha;
         }
 
         //if in check also allow evasion not only captures
         let stm = pos.player_to_move;
         if is_in_check(pos, stm) {
+            self.move_buf.clear();
             generate_legal_moves_in_place(pos, &mut self.move_buf);
+
             if self.move_buf.is_empty() {
                 return -MATE + ply as i32;
             }
@@ -219,7 +226,7 @@ impl <E: Evaluator> Searcher<E> {
         if stand_pat > alpha {
             alpha = stand_pat;
         }
-
+        self.move_buf.clear();
         generate_legal_captures_in_place(pos, &mut self.move_buf);
         self.move_buf.sort_by_key(|&m| -self.move_order_score(pos, m));
 

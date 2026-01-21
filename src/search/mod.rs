@@ -1,3 +1,3 @@
 pub mod searcher;
 
-pub use searcher::{SearchLimits, Searchresult, Searcher};
+pub use searcher::{SearchLimits, SearchResult, Searcher};
