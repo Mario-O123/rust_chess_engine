@@ -44,7 +44,7 @@ impl <E: Evaluator> Searcher<E> {
             move_buf: Vec::new() }
     }
 
-    pub fn search(&mut self, pos: &Position, limits: SearchLimits) -> SearchResult {
+    pub fn search(&mut self, pos: &mut Position, limits: SearchLimits) -> SearchResult {
         self.limits = limits;
         self.nodes = 0;
         self.start = Instant::now();
@@ -78,7 +78,7 @@ impl <E: Evaluator> Searcher<E> {
 
     }
 
-    fn root (&mut self, pos: &Position, depth: i32) -> (Move, i32) {
+    fn root (&mut self, pos: &mut Position, depth: i32) -> (Move, i32) {
         self.move_buf.clear();
         generate_legal_moves_in_place(pos, &mut self.move_buf);
         
@@ -120,7 +120,7 @@ impl <E: Evaluator> Searcher<E> {
 
     fn negamax(
         &mut self,
-        pos: &Position,
+        pos: &mut Position,
         depth: i32,
         ply: i32,
         mut alpha: i32,
@@ -174,7 +174,7 @@ impl <E: Evaluator> Searcher<E> {
 
     fn quiescence(
         &mut self,
-        pos: & Position,
+        pos: &mut Position,
         ply: i32,
         mut alpha: i32,
         beta: i32,
