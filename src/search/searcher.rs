@@ -92,7 +92,7 @@ impl <E: Evaluator> Searcher<E> {
         let mut best_mv = Move::NULL;
         let mut best = -INF;
         let mut alpha = -INF;
-        let mut beta = INF;
+        let beta = INF;
 
         for mv in self.move_buf.iter().copied() {
             let undo = pos.make_move_with_undo(mv);
