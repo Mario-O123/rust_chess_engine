@@ -20,11 +20,11 @@ pub use attack::is_in_check;
 use crate::position::{self, Cell, Position};
 
 #[inline]
-fn is_capture(position: &Position, mv: Move) -> bool {
+fn is_capture(position: &mut Position, mv: Move) -> bool {
     mv.is_en_passant() || matches!(position.board[mv.to_sq()], Cell::Piece(_))
 }
 
-pub fn generate_legal_moves_in_place(pos: &Position, out: &mut Vec<Move>) {
+pub fn generate_legal_moves_in_place(pos: &mut Position, out: &mut Vec<Move>) {
     out.clear();
     let stm = pos.player_to_move;
 
