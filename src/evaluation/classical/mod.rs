@@ -117,10 +117,20 @@ impl Evaluator for ClassicalEval {
             }
         }
 
-        debug_assert!(
-            white_king_sq64 < 64 && black_king_sq64 < 64,
-            "missing king(s)"
-        );
+        let white_king_sq64 = match white_king_sq64 < 64 {
+            true => white_king_sq64,
+            false => {
+                debug_assert!(false, "missing king(s)");
+                return 0;
+            }
+        };
+        let black_king_sq64 = match black_king_sq64 < 64 {
+            true => black_king_sq64,
+            false => {
+                debug_assert!(false, "missing king(s)");
+                return 0;
+            }
+        };
 
         // Kings are handled seperatly because of 2 PSTs
         // The 2 PSTs are blend, depending on non-pawn-pieces on board
