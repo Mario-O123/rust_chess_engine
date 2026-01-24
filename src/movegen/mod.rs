@@ -1,11 +1,11 @@
 // === Public API ===
+pub mod attack;
 pub mod legal_move_filter;
 pub mod r#move;
 pub mod perft;
 pub mod pseudo_legal_movegen;
 
 // === Internal helpers ===
-mod attack;
 mod pawn;
 mod piece;
 
