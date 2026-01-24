@@ -6,3 +6,4 @@ pub mod movegen;
 pub mod position;
 pub mod search;
 pub mod utils;
+pub mod trainer_rust;
