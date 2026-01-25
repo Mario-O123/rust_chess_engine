@@ -127,6 +127,111 @@ impl EngineCli {
 
         self.game.try_play_move(result.best_move);
     }
+
+    pub fn handle_line(&mut self, input: &str) -> bool {
+        let parts: Vec<&str> = input.split_whitespace().collect();
+        let cmd = parts[0].to_ascii_lowercase();
+
+        match  cmd.as_str() {
+            "quit" | "exit" => return true,
+
+            "help" => {
+                println!("Commands:");
+                println!("  help");
+                println!("  quit/exit");
+                println!("  new                            (new game)");
+                println!("  undo                           (undo 1 ply");
+                println!("  undo2                          (undo 2 plies");
+                println!("  eval                           (classical eval, from White perspective");
+                println!("  go [depth N| time MS|noes N]   (engine plays one move noew)");
+                println!("  engine on/off                  (toggle auto-engine reply after your move");
+                return false;
+            }
+
+            "new" => {
+                self.game = Game::new();
+                return false;
+            }
+
+            "undo" => {
+                if !self.game.undo() {
+                    println!("Nothing to undo");
+                }
+                return false;
+            }
+
+            "undo2" => {
+                let _ = self.game.undo();
+                let _ = self.game.undo();
+                return false;
+            }
+
+            "engine" => {
+                if parts.len() >= 2 {
+                    match parts[1].to_ascii_lowercase().as_str() {
+                        "on" => self.engine_enabled = true,
+                        "off" => self.engine_enabled = false,
+                        _ => println!("usage: engine on|off"),
+
+                    }
+                } else {
+                    println!("engine is {}", if self.engine_enabled {" on "} else { "off" });
+                }
+                return false;
+            }
+
+            "eval" => {
+                let score = self.eval_view.evaluate(self.game.position());
+                println!("Eval (White+) {} cp", score);
+                return false;
+            }
+
+            "go" => {
+                if self.game.status() != GameStatus::Ongoing {
+                    println!("Game is over; use 'new' or 'undo'.");
+                    return false;
+                }
+                let limits = parse_go_limits(&parts[1..], self.default_limits);
+                self.play_engine_move(limits);
+                return false;
+            }
+
+            _ => {}
+        }
+
+        //default: interpret as uci move
+        if self.game.status() != GameStatus::Ongoing {
+            println!("Game is over; use 'new' or 'undo'.");
+            return false;
+        }
+
+        //generate legal moves
+        let pos = self.game.position_mut();
+        generate_legal_moves_in_place(pos, &mut self.legal_buf);
+
+        if self.legal_buf.is_empty() {
+            println!("No legal moves.");
+            return false;
+        }
+
+        //uci -> legal move
+        let user_mv = match find_legal_move_from_uci(input, &self.legal_buf) {
+            Some(mv) => mv,
+            None => {
+                println!("Illegal: {input}");
+                return false;
+            }
+        };
+
+        self.game.try_play_move(user_mv);
+
+        //when engine active: search answer-move and play
+        if self.engine_enabled && self.game.status() == GameStatus::Ongoing {
+            self.play_engine_move(self.default_limits);
+        }
+
+        false
+    }
  
 
 
@@ -280,6 +385,68 @@ mod terminal_promo_cli_tests {
     }
 }
 
+#[cfg(test)]
+mod terminal_promo_handle_line_tests {
+    use super::EngineCli;
+
+    #[test]
+    fn new_resets_the_game() {
+        let mut cli = EngineCli::new();
+
+        cli.handle_line("engine off");
+        cli.handle_line("e2e4");
+
+        let fen_after_move = cli.game.position().to_fen();
+        assert_ne!(fen_after_move, EngineCli::new().game.position().to_fen());
+
+        cli.handle_line("new");
+        let fen_after_new = cli.game.position().to_fen();
+
+        let fen_start = EngineCli::new().game.position().to_fen();
+        assert_eq!(fen_after_new, fen_start);
+    }
+
+    #[test]
+    fn engine_toggle_off_on_does_not_quit() {
+        let mut cli = EngineCli::new();
+        assert!(!cli.handle_line("engine off"));
+        assert!(!cli.handle_line("engine on"));
+    }
+
+    #[test]
+    fn legal_user_move_changes_position_when_engine_off() {
+        let mut cli = EngineCli::new();
+        cli.handle_line("engine off");
+
+        let fen_before = cli.game.position().to_fen();
+        let side_before = cli.game.position().player_to_move;
+
+        assert!(!cli.handle_line("e2e4"));
+
+        let fen_after = cli.game.position().to_fen();
+        let side_after = cli.game.position().player_to_move;
+
+        assert_ne!(fen_after, fen_before);
+        assert_ne!(side_after, side_before);
+    }
+
+    #[test]
+    fn illegal_user_move_does_not_change_position() {
+        let mut cli = EngineCli::new();
+        cli.handle_line("engine off");
+
+        let fen_before = cli.game.position().to_fen();
+        let side_before = cli.game.position().player_to_move;
+
+        assert!(!cli.handle_line("e2e1"));
+
+        let fen_after = cli.game.position().to_fen();
+        let side_after = cli.game.position().player_to_move;
+
+        assert_eq!(fen_after, fen_before);
+        assert_eq!(side_after, side_before);
+    }
+}
 
 
 
