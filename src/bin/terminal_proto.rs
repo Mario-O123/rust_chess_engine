@@ -346,19 +346,19 @@ fn print_board(pos: &Position) {
 
 fn piece_to_char(color: Color, kind: PieceKind) -> char {
     match (color, kind) {
-        (Color::White, PieceKind::Pawn) => 'P',
-        (Color::White, PieceKind::Knight) => 'N',
-        (Color::White, PieceKind::Bishop) => 'B',
-        (Color::White, PieceKind::Rook) => 'R',
-        (Color::White, PieceKind::Queen) => 'Q',
-        (Color::White, PieceKind::King) => 'K',
+        (Color::White, PieceKind::Pawn) => '♟',
+        (Color::White, PieceKind::Knight) => '♞',
+        (Color::White, PieceKind::Bishop) => '♝',
+        (Color::White, PieceKind::Rook) => '♜',
+        (Color::White, PieceKind::Queen) => '♛',
+        (Color::White, PieceKind::King) => '♚',
 
-        (Color::Black, PieceKind::Pawn) => 'p',
-        (Color::Black, PieceKind::Knight) => 'n',
-        (Color::Black, PieceKind::Bishop) => 'b',
-        (Color::Black, PieceKind::Rook) => 'r',
-        (Color::Black, PieceKind::Queen) => 'q',
-        (Color::Black, PieceKind::King) => 'k',
+        (Color::Black, PieceKind::Pawn) => '♙',
+        (Color::Black, PieceKind::Knight) => '♘',
+        (Color::Black, PieceKind::Bishop) => '♗',
+        (Color::Black, PieceKind::Rook) => '♖',
+        (Color::Black, PieceKind::Queen) => '♕',
+        (Color::Black, PieceKind::King) => '♔',
     }
 }
 
@@ -379,7 +379,7 @@ mod terminal_promo_cli_tests {
         SearchLimits {
             max_depth: 5,
             max_nodes: None,
-            max_time_ms: Some(250),
+            max_time_ms: None,
         }
     }
     #[test]
