@@ -6,8 +6,44 @@ use rust_chess_engine::position::{Cell, Color, PieceKind, Position, Game, GameSt
 use rust_chess_engine::evaluation::{Evaluator, ClassicalEval};
 use rust_chess_engine::search::{SearchLimits, Searcher};
 
-fn main() { /* 
+fn main() {
+    let  mut cli = EngineCli::new();
 
+    println!("terminal_promo — commands: help | eval | go [depth N|time MS|nodes N] | undo | undo2 | new | engine on/off | quit");
+    loop {
+        cli.print_position();
+
+        if let Some(msg) = cli.game_over_message() {
+            println!("{msg}");
+        }
+
+        print!("{:?}> ", cli.game.position().player_to_move);
+        if io::stdout().flush().is_err() {
+            eprintln!("stdput flush failed");
+            break;
+        }
+
+        let mut line = String::new();
+        let bytes = match io::stdin().read_line(&mut line) {
+            Ok(n) => n,
+            Err(_) => break,
+        };
+        if bytes == 0 {
+            break;
+        }
+
+        let input = line.trim();
+        if input.is_empty() {
+            continue;
+        }
+        if cli.handle_line(input) {
+            break;
+        }
+    }
+
+    
+    
+    /* 
     let mut pos = Position::starting_position();
 
     loop {
@@ -95,6 +131,9 @@ impl EngineCli {
     pub fn print_position(&self) {
         let pos = self.game.position();
         print_board(pos);
+
+        println!();
+
         println!("FEN: {}", pos.to_fen());
         println!("Status: {}", format_status(self.game.status()));
     }
@@ -136,6 +175,7 @@ impl EngineCli {
             "quit" | "exit" => return true,
 
             "help" => {
+                println!();
                 println!("Commands:");
                 println!("  help");
                 println!("  quit/exit");
