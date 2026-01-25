@@ -106,7 +106,28 @@ impl EngineCli {
         }
     }
 
-    
+    fn play_engine_move(&mut self, limits: SearchLimits) {
+        let result = {
+            let (searcher, game) = (&mut self.searcher, &mut self.game);
+            searcher.search(game.position_mut(), limits)
+        };
+
+        if result.best_move.is_null() {
+            println!("Engine found no move: score={} depth={} nodes={}", result.score_cp, result.depth, result.nodes);
+            return;
+        }
+
+        println!(
+            "Engine: bestmove {} | score(stm)={}cp | depth={} | nodes={}",
+            result.best_move.to_uci(),
+            result.score_cp,
+            result.depth,
+            result.nodes
+        );
+
+        self.game.try_play_move(result.best_move);
+    }
+ 
 
 
 }
@@ -159,7 +180,6 @@ fn format_status(status: GameStatus) -> String {
         }
         effective_limits
     }
-
 
 fn print_board(pos: &Position) {
     println!();
