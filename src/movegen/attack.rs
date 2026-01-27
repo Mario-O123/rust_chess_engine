@@ -506,4 +506,24 @@ mod tests {
         assert!(!is_square_attacked(&pos, h8, Color::White));
         assert!(!is_square_attacked(&pos, h8, Color::Black));
     }
+
+    //test to check for a particular sequence which resulted in error while playing
+    #[test]
+    fn regression_no_king_cache_offboard_after_sequence() {
+        use crate::movegen::{generate_legal_moves_in_place, Move};
+
+        //position short before error
+        let fen = "r1bqkbnr/1ppp1p1p/8/p3n2p/2B1P3/2N5/PPP2PPP/R1B1K1NR w KQkq - 0 7";
+        let mut pos = Position::from_fen(fen).unwrap();
+
+        let mut buf = Vec::new();
+        generate_legal_moves_in_place(&mut pos, &mut buf);
+
+        //h2h3 should be legal
+        let h2h3 = Move::from_uci("h2h3").unwrap();
+        assert!(buf.iter().any(|m| *m == h2h3), "h2h3 not found in legal moves");
+
+        let undo = pos.make_move_with_undo(h2h3);
+        pos.undo_move(undo);
+    }
 }
