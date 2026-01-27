@@ -836,7 +836,18 @@ impl Position {
 
         debug_assert_eq!(self.zobrist, self.compute_zobrist());
         debug_assert_eq!(self.piece_counter, self.compute_piece_counter());
-        debug_assert_eq!(self.king_sq, self.compute_king_sq());
+        
+        #[cfg(debug_assertions)]
+        {
+        debug_assert_eq!(
+            self.king_sq,
+            self.compute_king_sq(),
+            "undo_move broke king_sq cache: cached={:?} computed={:?} fen={}",
+            self.king_sq,
+            self.compute_king_sq(),
+            self.to_fen()
+        );
+        }
     }
 }
 
