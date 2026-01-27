@@ -22,8 +22,15 @@ pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) 
 }
 
 pub fn is_in_check(position: &Position, color: Color) -> bool {
-    let king_sq = position.king_sq[color.idx()] as usize;
-    let king_square = Square::new(king_sq as u8);
+    let cached_king_sq120 = position.king_sq[color.idx()] as usize;
+
+    debug_assert!(
+        is_on_board(cached_king_sq120),
+        "cached_king_sq120 invalid: color={:?}, cached_king_sq120={}, fen={}",
+        color, cached_king_sq120, position.to_fen()
+    );
+
+    let king_square = Square::new(cached_king_sq120 as u8);
     let enemy = color.opposite();
     is_square_attacked(position, king_square, enemy)
 }
