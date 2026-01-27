@@ -65,6 +65,11 @@ impl<E: Evaluator> Searcher<E> {
             };
         }
 
+        #[cfg(debug_assertions)]
+        {
+        debug_assert_eq!(pos.king_sq, pos.compute_king_sq(), "search(): king_sq invalid at entry, fen={}", pos.to_fen());
+        }
+
         let mut best_move = Move::NULL;
         let mut best_score = 0;
         let mut reached_depth = 0;
@@ -78,6 +83,10 @@ impl<E: Evaluator> Searcher<E> {
 
 
             if mv.is_null() {
+                if best_move.is_null() {
+                    best_score = sc;
+                    reached_depth = d;
+                }
                 break;
             }
 
@@ -88,6 +97,12 @@ impl<E: Evaluator> Searcher<E> {
             if self.should_stop() {
                 break;
             }
+
+            #[cfg(debug_assertions)]
+            {
+            debug_assert_eq!(pos.king_sq, pos.compute_king_sq(), "search(): king_sq invalid at entry, fen={}", pos.to_fen());
+            }
+            
         }
         SearchResult {
             best_move,
