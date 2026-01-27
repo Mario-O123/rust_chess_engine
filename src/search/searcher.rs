@@ -70,15 +70,20 @@ impl<E: Evaluator> Searcher<E> {
         let mut reached_depth = 0;
 
         for d in 1..=self.limits.max_depth {
+            
+            if self.should_stop() {
+                break;
+            }
             let (mv, sc) = self.root(pos, d as i32);
 
-            best_move = mv;
-            best_score = sc;
-            reached_depth = d;
 
             if mv.is_null() {
                 break;
             }
+
+            best_move = mv;
+            best_score = sc;
+            reached_depth = d;
 
             if self.should_stop() {
                 break;
@@ -125,16 +130,15 @@ impl<E: Evaluator> Searcher<E> {
             self.history.pop();
             pos.undo_move(undo);
 
-            if self.should_stop() {
-                break;
-            }
-
             if score > best {
                 best = score;
                 best_mv = mv;
             }
             if score > alpha {
                 alpha = score;
+            }
+            if self.should_stop() {
+                break;
             }
         }
         (best_mv, best)
@@ -150,7 +154,7 @@ impl<E: Evaluator> Searcher<E> {
     ) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return alpha;
+            return self.eval_stm(pos);
         }
 
         //draw rules
@@ -205,7 +209,7 @@ impl<E: Evaluator> Searcher<E> {
     fn quiescence(&mut self, pos: &mut Position, ply: i32, mut alpha: i32, beta: i32) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return alpha;
+            return self.eval_stm(pos);
         }
 
         //if in check also allow evasion not only captures
