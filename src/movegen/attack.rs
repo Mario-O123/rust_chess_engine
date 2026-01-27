@@ -14,7 +14,11 @@ use crate::position::{Cell, Color, Position, Square};
 //main function, detects if given square is attacked
 pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) -> bool {
     let square120 = square.as_usize();
-    debug_assert!(is_on_board(square120));
+    debug_assert!(
+        is_on_board(square120),
+        "is_square_attacked: square120={} offboard, by_color={:?}, fen={}",
+        square120, by_color, position.to_fen()
+    );
     attacked_by_pawn(position, square120, by_color)
         || attacked_by_knight(position, square120, by_color)
         || attacked_by_sliders(position, square120, by_color)
