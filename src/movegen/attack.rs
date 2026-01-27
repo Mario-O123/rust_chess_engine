@@ -19,6 +19,10 @@ pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) 
         "is_square_attacked: square120={} offboard, by_color={:?}, fen={}",
         square120, by_color, position.to_fen()
     );
+    if !is_on_board(square120) {
+        return false;
+    }
+
     attacked_by_pawn(position, square120, by_color)
         || attacked_by_knight(position, square120, by_color)
         || attacked_by_sliders(position, square120, by_color)
