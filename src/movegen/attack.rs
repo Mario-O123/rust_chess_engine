@@ -30,7 +30,14 @@ pub fn is_in_check(position: &Position, color: Color) -> bool {
         color, cached_king_sq120, position.to_fen()
     );
 
-    let king_square = Square::new(cached_king_sq120 as u8);
+    //release fallback
+    let king_sq120 = if is_on_board(cached_king_sq120) {
+        cached_king_sq120
+    } else { //search king directly on board if cache is broken
+        find_king(position, color).expect("king missing on board")
+    };
+
+    let king_square = Square::new(king_sq120 as u8);
     let enemy = color.opposite();
     is_square_attacked(position, king_square, enemy)
 }
