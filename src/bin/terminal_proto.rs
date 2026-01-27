@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::time::Instant;
 
 use rust_chess_engine::board::mailbox120::{QUEEN_DIRECTIONS, square120_from_file_rank};
 use rust_chess_engine::movegen::{Move, generate_legal_moves_in_place};
@@ -121,9 +122,9 @@ impl EngineCli {
             legal_buf: Vec::new(),
             engine_enabled: true,
             default_limits: SearchLimits {
-                max_depth: 5,
+                max_depth: 7,
                 max_nodes: None,
-                max_time_ms: Some(250),
+                max_time_ms: Some(2000),
             },
         }
     }
@@ -146,22 +147,44 @@ impl EngineCli {
     }
 
     fn play_engine_move(&mut self, limits: SearchLimits) {
+        let requested_depth = limits.max_depth;
+        let requested_time_ms = limits.max_time_ms;
+        let requested_nodes = limits.max_nodes;
+
+        let t0 = Instant::now();
         let result = {
             let (searcher, game) = (&mut self.searcher, &mut self.game);
             searcher.search(game.position_mut(), limits)
         };
+        let elapsed_ms = t0.elapsed().as_millis() as u64;
+        let reached_depth = result.depth;
+        let stopped_by = if reached_depth >= requested_depth {
+            "depth"
+        } else if let Some(ms) = requested_time_ms {
+            if elapsed_ms >= ms {"time"} else {"unknown"}
+        } else if let Some(n) = requested_nodes {
+            if result.nodes >= n {"nodes"} else {"unknown"}
+        } else {
+            "unknown"
+        };
 
         if result.best_move.is_null() {
-            println!("Engine found no move: score={} depth={} nodes={}", result.score_cp, result.depth, result.nodes);
+            println!("Engine found no move: score={} depth={}/{} nodes={} elapsed={}ms stop={}",
+            result.score_cp, reached_depth, requested_depth, result.nodes, elapsed_ms, stopped_by);
             return;
         }
 
         println!(
-            "Engine: bestmove {} | score(stm)={}cp | depth={} | nodes={}",
+            "Engine: bestmove {} | score(stm)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={} | limits(time={:?}ms, nodes={:?}",
             result.best_move.to_uci(),
             result.score_cp,
-            result.depth,
-            result.nodes
+            reached_depth,
+            requested_depth,
+            result.nodes,
+            elapsed_ms,
+            stopped_by,
+            requested_time_ms,
+            requested_nodes,
         );
 
         self.game.try_play_move(result.best_move);
@@ -385,8 +408,8 @@ mod terminal_promo_cli_tests {
     #[test]
     fn empty_go_tokens_returns_defaults() {
         let limits = parse_go_limits(&[], default_limits());
-        assert_eq!(limits.max_depth, 5);
-        assert_eq!(limits.max_time_ms, Some(250));
+        assert_eq!(limits.max_depth, 7);
+        assert_eq!(limits.max_time_ms, Some(2000));
         assert_eq!(limits.max_nodes, None);
     }
 
@@ -394,7 +417,7 @@ mod terminal_promo_cli_tests {
     fn depth_overrides_default() {
         let limits = parse_go_limits(&["depth", "7"], default_limits());
         assert_eq!(limits.max_depth, 7);
-        assert_eq!(limits.max_time_ms, Some(250));
+        assert_eq!(limits.max_time_ms, Some(2000));
         assert_eq!(limits.max_nodes, None);
     }
 
@@ -408,7 +431,7 @@ mod terminal_promo_cli_tests {
     fn time_and_nodes_override_defaults() {
         let limits = parse_go_limits(&["time", "1000", "nodes", "200000"], default_limits());
         assert_eq!(limits.max_depth, 5);
-        assert_eq!(limits.max_time_ms, Some(1000));
+        assert_eq!(limits.max_time_ms, Some(2000));
         assert_eq!(limits.max_nodes, Some(200000));
     }
 
@@ -419,8 +442,8 @@ mod terminal_promo_cli_tests {
             default_limits(),
         );
         
-        assert_eq!(limits.max_depth, 5);
-        assert_eq!(limits.max_time_ms, Some(250));
+        assert_eq!(limits.max_depth, 7);
+        assert_eq!(limits.max_time_ms, Some(2000));
         assert_eq!(limits.max_nodes, None);
     }
 }
