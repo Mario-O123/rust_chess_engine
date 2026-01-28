@@ -67,7 +67,12 @@ impl<E: Evaluator> Searcher<E> {
 
         #[cfg(debug_assertions)]
         {
-        debug_assert_eq!(pos.king_sq, pos.compute_king_sq(), "search(): king_sq invalid at entry, fen={}", pos.to_fen());
+            debug_assert_eq!(
+                pos.king_sq,
+                pos.compute_king_sq(),
+                "search(): king_sq invalid at entry, fen={}",
+                pos.to_fen()
+            );
         }
 
         let mut best_move = Move::NULL;
@@ -75,12 +80,14 @@ impl<E: Evaluator> Searcher<E> {
         let mut reached_depth = 0;
 
         for d in 1..=self.limits.max_depth {
-            
             if self.should_stop() {
                 break;
             }
-            let (mv, sc) = self.root(pos, d as i32);
+            let (mv, sc, complete) = self.root(pos, d as i32);
 
+            if !complete {
+                break;
+            }
 
             if mv.is_null() {
                 if best_move.is_null() {
@@ -100,9 +107,13 @@ impl<E: Evaluator> Searcher<E> {
 
             #[cfg(debug_assertions)]
             {
-            debug_assert_eq!(pos.king_sq, pos.compute_king_sq(), "search(): king_sq invalid at entry, fen={}", pos.to_fen());
+                debug_assert_eq!(
+                    pos.king_sq,
+                    pos.compute_king_sq(),
+                    "search(): king_sq invalid at entry, fen={}",
+                    pos.to_fen()
+                );
             }
-            
         }
         SearchResult {
             best_move,
@@ -112,51 +123,84 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
-    fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32) {
+    fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
         self.move_buf.clear();
         generate_legal_moves_in_place(pos, &mut self.move_buf);
+        let mut complete = true;
 
         if self.move_buf.is_empty() {
-            return (Move::NULL, self.terminal_score(pos, 0));
+            return (Move::NULL, self.terminal_score(pos, 0), complete);
         }
 
-        //simple ordering
-        //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
-
-        let mut best_mv = Move::NULL;
-        let mut best = -INF;
-        let mut alpha = -INF;
-        let beta = INF;
-
+        // Build + sort ordered move list (captures/promos first via move_order_score)
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
             .map(|&m| (m, Self::move_order_score(pos, m)))
             .collect();
 
-        scored_moves.sort_by_key(|&(_, score)| -score);
+        scored_moves.sort_by_key(|&(_, s)| -s);
+        // let scored_moves_clone = scored_moves.clone();
+
+        let mut best_mv = Move::NULL;
+        let mut alpha = -INF;
+        let beta = INF;
+
+        let mut first = true;
 
         for (mv, _) in scored_moves {
+            if self.should_stop() {
+                break;
+            }
+            if self.should_stop() {
+                complete = false;
+                break;
+            }
+
             let undo = pos.make_move_with_undo(mv);
             self.history.push(pos.zobrist);
 
-            let score = -self.negamax(pos, depth - 1, 1, -beta, -alpha);
+            // - First move: full window
+            // - Others: null-window search; if it improves alpha, re-search full window
+            let score = if first {
+                first = false;
+                -self.negamax(pos, depth - 1, 1, -beta, -alpha)
+            } else {
+                // Null-window probe: in negamax the child window is (-alpha-1, -alpha)
+                let mut s = -self.negamax(pos, depth - 1, 1, -alpha - 1, -alpha);
+
+                if s > alpha {
+                    // Re-search with full window to get exact score
+                    s = -self.negamax(pos, depth - 1, 1, -beta, -alpha);
+                }
+                s
+            };
 
             self.history.pop();
             pos.undo_move(undo);
 
-            if score > best {
-                best = score;
-                best_mv = mv;
-            }
             if score > alpha {
                 alpha = score;
-            }
-            if self.should_stop() {
-                break;
+                best_mv = mv;
             }
         }
-        (best_mv, best)
+
+        /*
+        println!("ROOT depth={}", depth);
+        for &(mv, _ord) in scored_moves_clone.iter() {
+            let undo = pos.make_move_with_undo(mv);
+            self.history.push(pos.zobrist);
+
+            let score = -self.negamax(pos, depth - 1, 1, -INF, INF);
+
+            self.history.pop();
+            pos.undo_move(undo);
+
+            println!("{:?} -> {}", mv, score);
+        }
+        */
+
+        (best_mv, alpha, complete)
     }
 
     fn negamax(
@@ -363,6 +407,27 @@ impl<E: Evaluator> Searcher<E> {
     #[inline]
     fn move_order_score(pos: &Position, mv: Move) -> i32 {
         let mut s = 0;
+        // Engine prefers double pawn push of central pawns
+        if mv.is_double_pawn_push() {
+            let file = (mv.to_sq() as i32 - 21) % 10;
+            // d/e-file
+            if file == 3 || file == 4 {
+                s += 40;
+            }
+            // a/h-file
+            else if file == 0 || file == 7 {
+                s -= 20;
+            } // a/h-file
+        }
+
+        if let Cell::Piece(p) = pos.board[mv.from_sq()] {
+            if p.kind == PieceKind::Knight || p.kind == PieceKind::Bishop {
+                s += 30;
+            }
+            if p.kind == PieceKind::Rook {
+                s -= 30;
+            }
+        }
 
         if mv.is_promotion() {
             s += 90000;
