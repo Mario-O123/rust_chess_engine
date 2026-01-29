@@ -2,13 +2,12 @@ use std::time::Instant;
 
 use crate::evaluation::Evaluator;
 use crate::movegen::{
-    Move, generate_legal_captures_in_place, generate_legal_moves_in_place, is_in_check,
+    Move, generate_legal_captures_in_place, generate_pseudo_legal_moves_in_place, is_in_check,
 };
 use crate::position::{Cell, Color, PieceKind, Position};
 
 const INF: i32 = 50000;
 const MATE: i32 = 30_000;
-
 #[derive(Clone, Copy)]
 pub struct SearchLimits {
     pub max_depth: u8,
@@ -124,8 +123,10 @@ impl<E: Evaluator> Searcher<E> {
     }
 
     fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
+        let side_to_move = pos.player_to_move;
+
         self.move_buf.clear();
-        generate_legal_moves_in_place(pos, &mut self.move_buf);
+        generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
         let mut complete = true;
 
         if self.move_buf.is_empty() {
@@ -147,17 +148,23 @@ impl<E: Evaluator> Searcher<E> {
         let beta = INF;
 
         let mut first = true;
+        let mut any_legal = false;
 
         for (mv, _) in scored_moves {
-            if self.should_stop() {
-                break;
-            }
             if self.should_stop() {
                 complete = false;
                 break;
             }
 
             let undo = pos.make_move_with_undo(mv);
+
+            //check legality
+            if is_in_check(pos, side_to_move) {
+                pos.undo_move(undo);
+                continue;
+            }
+            any_legal = true;
+
             self.history.push(pos.zobrist);
 
             // - First move: full window
@@ -185,20 +192,9 @@ impl<E: Evaluator> Searcher<E> {
             }
         }
 
-        /*
-        println!("ROOT depth={}", depth);
-        for &(mv, _ord) in scored_moves_clone.iter() {
-            let undo = pos.make_move_with_undo(mv);
-            self.history.push(pos.zobrist);
-
-            let score = -self.negamax(pos, depth - 1, 1, -INF, INF);
-
-            self.history.pop();
-            pos.undo_move(undo);
-
-            println!("{:?} -> {}", mv, score);
+        if !any_legal {
+            return  (Move::NULL, self.terminal_score(pos, 0), complete);
         }
-        */
 
         (best_mv, alpha, complete)
     }
