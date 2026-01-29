@@ -4,7 +4,7 @@ use futures::StreamExt;
 use anyhow::Result;
 use super::{UciEngineHandle, BotConfig};
 
-const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Debug, Deserialize)]
 struct Event {
@@ -310,5 +310,13 @@ impl LichessBot {
         }
 
         Ok(())
+    }
+}
+
+impl std::fmt::Debug for LichessBot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LichessBot")
+            .field("bot_id", &self.bot_id)
+            .finish()
     }
 }
