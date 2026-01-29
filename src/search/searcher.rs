@@ -2,13 +2,12 @@ use std::time::Instant;
 
 use crate::evaluation::Evaluator;
 use crate::movegen::{
-    Move, generate_legal_captures_in_place, generate_legal_moves_in_place, is_in_check,
+    Move, generate_legal_captures_in_place, generate_pseudo_legal_moves_in_place, is_in_check,
 };
 use crate::position::{Cell, Color, PieceKind, Position};
 
 const INF: i32 = 50000;
 const MATE: i32 = 30_000;
-
 #[derive(Clone, Copy)]
 pub struct SearchLimits {
     pub max_depth: u8,
@@ -65,23 +64,54 @@ impl<E: Evaluator> Searcher<E> {
             };
         }
 
+        #[cfg(debug_assertions)]
+        {
+            debug_assert_eq!(
+                pos.king_sq,
+                pos.compute_king_sq(),
+                "search(): king_sq invalid at entry, fen={}",
+                pos.to_fen()
+            );
+        }
+
         let mut best_move = Move::NULL;
         let mut best_score = 0;
         let mut reached_depth = 0;
 
         for d in 1..=self.limits.max_depth {
-            let (mv, sc) = self.root(pos, d as i32);
+            if self.should_stop() {
+                break;
+            }
+            let (mv, sc, complete) = self.root(pos, d as i32);
+
+            if !complete {
+                break;
+            }
+
+            if mv.is_null() {
+                if best_move.is_null() {
+                    best_score = sc;
+                    reached_depth = d;
+                }
+                break;
+            }
 
             best_move = mv;
             best_score = sc;
             reached_depth = d;
 
-            if mv.is_null() {
+            if self.should_stop() {
                 break;
             }
 
-            if self.should_stop() {
-                break;
+            #[cfg(debug_assertions)]
+            {
+                debug_assert_eq!(
+                    pos.king_sq,
+                    pos.compute_king_sq(),
+                    "search(): king_sq invalid at entry, fen={}",
+                    pos.to_fen()
+                );
             }
         }
         SearchResult {
@@ -92,52 +122,81 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
-    fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32) {
+    fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
+        let side_to_move = pos.player_to_move;
+
         self.move_buf.clear();
-        generate_legal_moves_in_place(pos, &mut self.move_buf);
+        generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
+        let mut complete = true;
 
         if self.move_buf.is_empty() {
-            return (Move::NULL, self.terminal_score(pos, 0));
+            return (Move::NULL, self.terminal_score(pos, 0), complete);
         }
 
-        //simple ordering
-        //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
-
-        let mut best_mv = Move::NULL;
-        let mut best = -INF;
-        let mut alpha = -INF;
-        let beta = INF;
-
+        // Build + sort ordered move list (captures/promos first via move_order_score)
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
             .map(|&m| (m, Self::move_order_score(pos, m)))
             .collect();
 
-        scored_moves.sort_by_key(|&(_, score)| -score);
+        scored_moves.sort_by_key(|&(_, s)| -s);
+        // let scored_moves_clone = scored_moves.clone();
+
+        let mut best_mv = Move::NULL;
+        let mut alpha = -INF;
+        let beta = INF;
+
+        let mut first = true;
+        let mut any_legal = false;
 
         for (mv, _) in scored_moves {
+            if self.should_stop() {
+                complete = false;
+                break;
+            }
+
             let undo = pos.make_move_with_undo(mv);
+
+            //check legality
+            if is_in_check(pos, side_to_move) {
+                pos.undo_move(undo);
+                continue;
+            }
+            any_legal = true;
+
             self.history.push(pos.zobrist);
 
-            let score = -self.negamax(pos, depth - 1, 1, -beta, -alpha);
+            // - First move: full window
+            // - Others: null-window search; if it improves alpha, re-search full window
+            let score = if first {
+                first = false;
+                -self.negamax(pos, depth - 1, 1, -beta, -alpha)
+            } else {
+                // Null-window probe: in negamax the child window is (-alpha-1, -alpha)
+                let mut s = -self.negamax(pos, depth - 1, 1, -alpha - 1, -alpha);
+
+                if s > alpha {
+                    // Re-search with full window to get exact score
+                    s = -self.negamax(pos, depth - 1, 1, -beta, -alpha);
+                }
+                s
+            };
 
             self.history.pop();
             pos.undo_move(undo);
 
-            if self.should_stop() {
-                break;
-            }
-
-            if score > best {
-                best = score;
-                best_mv = mv;
-            }
             if score > alpha {
                 alpha = score;
+                best_mv = mv;
             }
         }
-        (best_mv, best)
+
+        if !any_legal {
+            return  (Move::NULL, self.terminal_score(pos, 0), complete);
+        }
+
+        (best_mv, alpha, complete)
     }
 
     fn negamax(
@@ -150,7 +209,7 @@ impl<E: Evaluator> Searcher<E> {
     ) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return alpha;
+            return self.eval_stm(pos);
         }
 
         //draw rules
@@ -163,8 +222,10 @@ impl<E: Evaluator> Searcher<E> {
         if depth <= 0 {
             return self.quiescence(pos, ply, alpha, beta);
         }
+        let side_to_move = pos.player_to_move;
+
         self.move_buf.clear();
-        generate_legal_moves_in_place(pos, &mut self.move_buf);
+        generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
 
         if self.move_buf.is_empty() {
             return self.terminal_score(pos, ply);
@@ -180,8 +241,21 @@ impl<E: Evaluator> Searcher<E> {
 
         scored_moves.sort_by_key(|&(_, score)| -score);
 
+        let mut any_legal = false;
+
         for (mv, _) in scored_moves {
+            if self.should_stop() {
+                break;
+            }
             let undo = pos.make_move_with_undo(mv);
+
+            //check legality inline, instead of filtering legal before
+            if is_in_check(pos, side_to_move) {
+                pos.undo_move(undo);
+                continue;
+            }
+            any_legal = true;
+
             self.history.push(pos.zobrist);
 
             let score = -self.negamax(pos, depth - 1, ply + 1, -beta, -alpha);
@@ -195,24 +269,26 @@ impl<E: Evaluator> Searcher<E> {
             if alpha >= beta {
                 break;
             }
-            if self.should_stop() {
-                break;
-            }
         }
+
+        if !any_legal {
+            return self.terminal_score(pos, ply);
+        }
+
         alpha
     }
 
     fn quiescence(&mut self, pos: &mut Position, ply: i32, mut alpha: i32, beta: i32) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
-            return alpha;
+            return self.eval_stm(pos);
         }
 
         //if in check also allow evasion not only captures
-        let stm = pos.player_to_move;
-        if is_in_check(pos, stm) {
+        let side_to_move = pos.player_to_move;
+        if is_in_check(pos, side_to_move) {
             self.move_buf.clear();
-            generate_legal_moves_in_place(pos, &mut self.move_buf);
+            generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
 
             if self.move_buf.is_empty() {
                 return -MATE + ply as i32;
@@ -228,8 +304,22 @@ impl<E: Evaluator> Searcher<E> {
 
             scored_moves.sort_by_key(|&(_, score)| -score);
 
+            let mut any_legal = false;
+
             for (mv, _) in scored_moves {
+                if self.should_stop() {
+                    break;
+                }
+
                 let undo = pos.make_move_with_undo(mv);
+
+                //legality check (did we leave the king in check?)
+                if is_in_check(pos, side_to_move) {
+                    pos.undo_move(undo);
+                    continue;
+                }
+                any_legal = true;
+
                 self.history.push(pos.zobrist);
 
                 let score = -self.quiescence(pos, ply + 1, -beta, -alpha);
@@ -243,9 +333,11 @@ impl<E: Evaluator> Searcher<E> {
                 if alpha >= beta {
                     return beta;
                 }
-                if self.should_stop() {
-                    break;
-                }
+                
+            }
+
+            if !any_legal {
+                return -MATE + ply;
             }
             return alpha;
         }
@@ -259,17 +351,33 @@ impl<E: Evaluator> Searcher<E> {
             alpha = stand_pat;
         }
         self.move_buf.clear();
-        generate_legal_captures_in_place(pos, &mut self.move_buf);
+        generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
         //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
+            .filter(|&&m| {
+                m.is_promotion()
+                    || m.is_en_passant()
+                    || matches!(pos.board[m.to_sq()], Cell::Piece(_))
+            })
             .map(|&m| (m, Self::move_order_score(pos, m)))
             .collect();
 
         scored_moves.sort_by_key(|&(_, score)| -score);
         for (mv, _) in scored_moves {
+            if self.should_stop() {
+                break;
+            }
+
             let undo = pos.make_move_with_undo(mv);
+
+            //legality check
+            if is_in_check(pos, side_to_move) {
+                pos.undo_move(undo);
+                continue;
+            }
+
             self.history.push(pos.zobrist);
 
             let score = -self.quiescence(pos, ply + 1, -beta, -alpha);
@@ -282,10 +390,7 @@ impl<E: Evaluator> Searcher<E> {
             }
             if score > alpha {
                 alpha = score;
-            }
-            if self.should_stop() {
-                break;
-            }
+            }   
         }
         alpha
     }
@@ -344,6 +449,27 @@ impl<E: Evaluator> Searcher<E> {
     #[inline]
     fn move_order_score(pos: &Position, mv: Move) -> i32 {
         let mut s = 0;
+        // Engine prefers double pawn push of central pawns
+        if mv.is_double_pawn_push() {
+            let file = (mv.to_sq() as i32 - 21) % 10;
+            // d/e-file
+            if file == 3 || file == 4 {
+                s += 40;
+            }
+            // a/h-file
+            else if file == 0 || file == 7 {
+                s -= 20;
+            } // a/h-file
+        }
+
+        if let Cell::Piece(p) = pos.board[mv.from_sq()] {
+            if p.kind == PieceKind::Knight || p.kind == PieceKind::Bishop {
+                s += 30;
+            }
+            if p.kind == PieceKind::Rook {
+                s -= 30;
+            }
+        }
 
         if mv.is_promotion() {
             s += 90000;
@@ -376,6 +502,7 @@ mod tests {
     use super::*;
     use crate::evaluation::classical::ClassicalEval;
     use crate::position::Position;
+    use crate::movegen::generate_legal_moves_in_place;
 
     // Test 1: Basic functionality
     #[test]
