@@ -147,6 +147,8 @@ impl EngineCli {
     }
 
     fn play_engine_move(&mut self, limits: SearchLimits) {
+        let root_side_to_move = self.game.position().player_to_move;
+
         let requested_depth = limits.max_depth;
         let requested_time_ms = limits.max_time_ms;
         let requested_nodes = limits.max_nodes;
@@ -156,6 +158,14 @@ impl EngineCli {
             let (searcher, game) = (&mut self.searcher, &mut self.game);
             searcher.search(game.position_mut(), limits)
         };
+
+        let score_side_to_move_cp = result.score_cp;
+        let score_white_cp = if root_side_to_move == Color::White {
+            score_side_to_move_cp
+        } else {
+            -score_side_to_move_cp
+        };
+
         let elapsed_ms = t0.elapsed().as_millis() as u64;
         let reached_depth = result.depth;
         let stopped_by = if reached_depth >= requested_depth {
@@ -169,15 +179,17 @@ impl EngineCli {
         };
 
         if result.best_move.is_null() {
-            println!("Engine found no move: score={} depth={}/{} nodes={} elapsed={}ms stop={}",
-            result.score_cp, reached_depth, requested_depth, result.nodes, elapsed_ms, stopped_by);
+            println!("Engine({:?}) found no move: score(side_to_move)={}cp | score(white)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={}",
+            root_side_to_move, score_side_to_move_cp, score_white_cp, reached_depth, requested_depth, result.nodes, elapsed_ms, stopped_by);
             return;
         }
 
         println!(
-            "Engine: bestmove {} | score(stm)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={} | limits(time={:?}ms, nodes={:?}",
+            "Engine({:?}): bestmove {} | score(stm)={}cp | score(white)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={} | limits(time={:?}ms, nodes={:?})",
+            root_side_to_move,
             result.best_move.to_uci(),
-            result.score_cp,
+            score_side_to_move_cp,
+            score_white_cp,
             reached_depth,
             requested_depth,
             result.nodes,
