@@ -5,6 +5,7 @@ use crate::movegen::{
     Move, generate_legal_captures_in_place, generate_pseudo_legal_moves_in_place, is_in_check,
 };
 use crate::position::{Cell, Color, PieceKind, Position};
+use super::tt::{Bound, TranspositionTable};
 
 const INF: i32 = 50000;
 const MATE: i32 = 30_000;
@@ -29,6 +30,7 @@ pub struct Searcher<E: Evaluator> {
     limits: SearchLimits,
     history: Vec<u64>,
     move_buf: Vec<Move>,
+    tt: TranspositionTable,
 }
 
 impl<E: Evaluator> Searcher<E> {
@@ -44,6 +46,7 @@ impl<E: Evaluator> Searcher<E> {
             },
             history: Vec::new(),
             move_buf: Vec::new(),
+            tt: TranspositionTable::new_mb(64),
         }
     }
 
@@ -401,6 +404,30 @@ impl<E: Evaluator> Searcher<E> {
             -MATE + ply
         } else {
             0
+        }
+    }
+
+    fn is_mate_score(score: i32) -> bool {
+        score.abs() > MATE - 1000
+    }
+
+    fn to_tt_score(score: i32, ply: i32) -> i32 {
+        if score > MATE - 1000 {
+            score + ply
+        } else if score < -MATE + 1000 {
+            score - ply
+        } else {
+            score
+        }
+    }
+
+    fn from_tt_score(score: i32, ply: i32) -> i32 {
+        if score > MATE - 1000 {
+            score - ply
+        } else if score > -MATE + 1000 {
+            score + ply
+        } else {
+            score
         }
     }
 
@@ -777,4 +804,65 @@ mod tests {
             );
         }
     }
+}
+
+#[cfg(test)]
+mod mate_score_tests {
+    use super::*;
+
+    struct DummyEval;
+    impl Evaluator for DummyEval {
+        fn evaluate(&mut self, pos: &Position) -> i32 {
+            0
+        }
+    }
+
+    #[test]
+    fn tt_score_roundtrip_non_mate_is_unchanged() {
+        let ply = 7;
+        let score = 123; //normal eval score
+
+        let stored = Searcher::<DummyEval>::to_tt_score(score, ply);
+        let loaded = Searcher::<DummyEval>::from_tt_score(stored, ply);
+
+        assert_eq!(stored, score);
+        assert_eq!(loaded, score);
+        assert!(!Searcher::<DummyEval>::is_mate_score(score));
+    }
+
+    #[test]
+    fn tt_score_roundtrip_positive_mate_is_ply_neutral() {
+        let ply = 9;
+        let score = MATE - ply;
+
+        let stored = Searcher::<DummyEval>::to_tt_score(score, ply);
+        let loaded = Searcher::<DummyEval>::from_tt_score(stored, ply);
+
+        assert_eq!(stored, MATE);
+        assert_eq!(loaded, score);
+        assert!(Searcher::<DummyEval>::is_mate_score(score));
+    }
+
+     #[test]
+    fn tt_score_roundtrip_negative_mate_is_ply_neutral() {
+        let ply = 6;
+        let score = -MATE + ply;
+
+        let stored = Searcher::<DummyEval>::to_tt_score(score, ply);
+        let loaded = Searcher::<DummyEval>::from_tt_score(stored, ply);
+
+        assert_eq!(stored, -MATE);
+        assert_eq!(loaded, score);
+        assert!(Searcher::<DummyEval>::is_mate_score(score));
+    }
+
+    #[test]
+    fn is_mate_score_has_buffer_and_does_not_trigger_on_large_non_mate_scores() {
+        let score = MATE - 1500;
+        assert!(!Searcher::<DummyEval>::is_mate_score(score));
+
+        let score2 = -MATE + 1500;
+        assert!(!Searcher::<DummyEval>::is_mate_score(score2));
+    }
+
 }
