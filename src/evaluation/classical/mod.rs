@@ -76,6 +76,11 @@ impl ClassicalEval {
             _ => 0,
         }
     }
+
+    #[inline]
+    fn bitmask(to_check: u8, mask: u8) -> bool {
+        to_check & mask != 1
+    }
 }
 
 impl Evaluator for ClassicalEval {
@@ -190,10 +195,12 @@ impl Evaluator for ClassicalEval {
 
         // Bonus for castling in early game
         let opening_bonus = (CASTLING_BONUS * phase) / PHASE_MAX;
-        let white_castled_sq = white_king_sq64 == 2 || white_king_sq64 == 6;
-        let black_castled_sq = black_king_sq64 == 2 || black_king_sq64 == 6;
+        let white_castled = (white_king_sq64 == 2 && Self::bitmask(0b0010, pos.castling_rights))
+            || (white_king_sq64 == 6 && Self::bitmask(0b0001, pos.castling_rights));
+        let black_castled_sq = (black_king_sq64 == 2 && Self::bitmask(0b1000, pos.castling_rights))
+            || (black_king_sq64 == 6 && Self::bitmask(0b0100, pos.castling_rights));
 
-        if white_castled_sq {
+        if white_castled {
             score += opening_bonus;
         }
         if black_castled_sq {
