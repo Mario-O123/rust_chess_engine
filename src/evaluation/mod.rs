@@ -1,6 +1,7 @@
 use crate::position::Position;
 
 pub mod classical;
+pub use classical::ClassicalEval;
 #[cfg(feature = "nn")]
 pub mod neural;
 pub trait Evaluator {
