@@ -1,32 +1,26 @@
 //here we will write the function which will decode the fen data from the training data into the informations we want
 
 pub fn decode_data(fen: &str) -> [f32; 768] {
-
     let board = fen.split_whitespace().next().unwrap();
-    let mut features  = [0.0f32 ; 12*64];
+    let mut features = [0.0f32; 12 * 64];
 
-    let mut square : usize = 0;
+    let mut square: usize = 0;
     for character in board.chars() {
-        if character == '/'{
+        if character == '/' {
             continue;
-        }
-        else if character.is_ascii_digit(){
-            square+= character.to_digit(10).unwrap() as usize;
-        }
-        else {
-            
+        } else if character.is_ascii_digit() {
+            square += character.to_digit(10).unwrap() as usize;
+        } else {
             let index = decode_pieces(character).unwrap() * 64 + square;
             features[index] = 1.0;
-            square +=1;
+            square += 1;
         }
     }
-    return features; 
-    
+    return features;
 }
 
-
-fn decode_pieces(char : char) -> Option<usize>{
-     match char {
+fn decode_pieces(char: char) -> Option<usize> {
+    match char {
         'P' => Some(0),
         'N' => Some(1),
         'B' => Some(2),
