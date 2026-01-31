@@ -16,6 +16,8 @@ const KING_VALUE: i32 = 0;
 const PLAYERS_TURN: i32 = 10;
 const BISHOP_PAIR: i32 = 30;
 const PHASE_MAX: i32 = 24;
+const CASTLING_BONUS: i32 = 30;
+const UNDEVELOPED_PENALTY: i32 = -10;
 
 impl ClassicalEval {
     pub fn new() -> Self {
@@ -74,6 +76,11 @@ impl ClassicalEval {
             _ => 0,
         }
     }
+
+    #[inline]
+    fn bitmask(to_check: u8, mask: u8) -> bool {
+        to_check & mask != 1
+    }
 }
 
 impl Evaluator for ClassicalEval {
@@ -84,6 +91,8 @@ impl Evaluator for ClassicalEval {
         let mut phase_counter = 0;
         let mut white_king_sq64: usize = 64;
         let mut black_king_sq64: usize = 64;
+        let mut white_undeveloped_count = 0;
+        let mut black_undeveloped_count = 0;
 
         // Bonus for piece and square depending on PST
         for (sq, cell) in pos.board.iter().enumerate() {
@@ -100,6 +109,28 @@ impl Evaluator for ClassicalEval {
                         Color::White => bishop_counter_white += 1,
                         Color::Black => bishop_counter_black += 1,
                     };
+                    let bsq_i8 = SQUARE120_TO_SQUARE64[sq];
+                    if bsq_i8 >= 0 {
+                        let bsq = bsq_i8 as usize;
+                        match piece.color {
+                            Color::White => {
+                                if bsq == 2 {
+                                    white_undeveloped_count += 1;
+                                }
+                                if bsq == 5 {
+                                    white_undeveloped_count += 1;
+                                }
+                            }
+                            Color::Black => {
+                                if Self::mirror_sq64(bsq) == 2 {
+                                    black_undeveloped_count += 1;
+                                }
+                                if Self::mirror_sq64(bsq) == 5 {
+                                    black_undeveloped_count += 1;
+                                }
+                            }
+                        }
+                    }
                 };
 
                 if piece.kind == PieceKind::King {
@@ -109,6 +140,31 @@ impl Evaluator for ClassicalEval {
                         match piece.color {
                             Color::White => white_king_sq64 = ksq,
                             Color::Black => black_king_sq64 = Self::mirror_sq64(ksq),
+                        }
+                    }
+                }
+
+                if piece.kind == PieceKind::Knight {
+                    let nsq_i8 = SQUARE120_TO_SQUARE64[sq];
+                    if nsq_i8 >= 0 {
+                        let nsq = nsq_i8 as usize;
+                        match piece.color {
+                            Color::White => {
+                                if nsq == 1 {
+                                    white_undeveloped_count += 1;
+                                }
+                                if nsq == 6 {
+                                    white_undeveloped_count += 1;
+                                }
+                            }
+                            Color::Black => {
+                                if Self::mirror_sq64(nsq) == 1 {
+                                    black_undeveloped_count += 1;
+                                }
+                                if Self::mirror_sq64(nsq) == 6 {
+                                    black_undeveloped_count += 1;
+                                }
+                            }
                         }
                     }
                 }
@@ -132,11 +188,28 @@ impl Evaluator for ClassicalEval {
             }
         };
 
-        // Kings are handled seperatly because of 2 PSTs
         // The 2 PSTs are blend, depending on non-pawn-pieces on board
         let phase = phase_counter.clamp(0, PHASE_MAX);
         score += Self::king_pst_blend(white_king_sq64, phase);
         score -= Self::king_pst_blend(black_king_sq64, phase);
+
+        // Bonus for castling in early game
+        let opening_bonus = (CASTLING_BONUS * phase) / PHASE_MAX;
+        let white_castled = (white_king_sq64 == 2 && Self::bitmask(0b0010, pos.castling_rights))
+            || (white_king_sq64 == 6 && Self::bitmask(0b0001, pos.castling_rights));
+        let black_castled_sq = (black_king_sq64 == 2 && Self::bitmask(0b1000, pos.castling_rights))
+            || (black_king_sq64 == 6 && Self::bitmask(0b0100, pos.castling_rights));
+
+        if white_castled {
+            score += opening_bonus;
+        }
+        if black_castled_sq {
+            score -= opening_bonus;
+        }
+
+        let undevelopment_penalty = (UNDEVELOPED_PENALTY * phase) / PHASE_MAX;
+        score += undevelopment_penalty * white_undeveloped_count;
+        score -= undevelopment_penalty * black_undeveloped_count;
 
         // Bonus for bishop pair
         if bishop_counter_white >= 2 {
@@ -146,7 +219,6 @@ impl Evaluator for ClassicalEval {
             score -= BISHOP_PAIR;
         }
 
-        // Bonus for players turn
         match pos.player_to_move {
             Color::White => score += PLAYERS_TURN,
             Color::Black => score -= PLAYERS_TURN,
@@ -193,6 +265,22 @@ mod tests {
 
         println!("Winning Position Black eval: {}", class_eval.evaluate(&pos));
         assert!(class_eval.evaluate(&pos) < 0);
+    }
+
+    // Debug Test
+    #[test]
+    fn debug_test() {
+        let mut pos = Position::starting_position();
+        let mut class_eval = ClassicalEval::new();
+
+        let e4 = sq(4, 3);
+        let e5 = sq(4, 4);
+        let a5 = sq(0, 4);
+
+        put(&mut pos, e4, Color::White, PieceKind::Pawn);
+        put(&mut pos, a5, Color::Black, PieceKind::Pawn);
+
+        println!("Eval after e4 e5 eval: {}", class_eval.evaluate(&pos));
     }
 
     #[test]
