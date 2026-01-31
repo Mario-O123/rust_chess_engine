@@ -126,21 +126,31 @@ impl<E: Evaluator> Searcher<E> {
     }
 
     fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
+        const TT_BONUS: i32 = 1_000_000;
+        
         let side_to_move = pos.player_to_move;
+        let root_key = pos.zobrist;
+
+        let tt_best = self.tt.probe(root_key).map(|e| e.best).unwrap_or(Move::NULL);
 
         self.move_buf.clear();
         generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
         let mut complete = true;
 
         if self.move_buf.is_empty() {
-            return (Move::NULL, self.terminal_score(pos, 0), complete);
+            let sc = self.terminal_score(pos, 0);
+            self.tt.store(root_key, depth, Self::to_tt_score(sc, 0), Bound::Exact, Move::NULL);
+            return (Move::NULL, sc, complete);
         }
 
         // Build + sort ordered move list (captures/promos first via move_order_score)
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
-            .map(|&m| (m, Self::move_order_score(pos, m)))
+            .map(|&m| {
+                let tt_bonus = if m == tt_best { TT_BONUS } else { 0 };
+                (m, Self::move_order_score(pos, m) + tt_bonus)
+            })
             .collect();
 
         scored_moves.sort_by_key(|&(_, s)| -s);
@@ -196,7 +206,16 @@ impl<E: Evaluator> Searcher<E> {
         }
 
         if !any_legal {
-            return  (Move::NULL, self.terminal_score(pos, 0), complete);
+            let sc = self.terminal_score(pos, 0);
+            if complete {
+                self.tt.store(root_key, depth, Self::to_tt_score(sc, 0), Bound::Exact, Move::NULL);
+            }
+            return  (Move::NULL, sc, complete);
+        }
+
+        //root is an exact result if complete
+        if complete {
+            self.tt.store(root_key, depth, Self::to_tt_score(alpha, 0), Bound::Exact, best_mv);   
         }
 
         (best_mv, alpha, complete)
@@ -225,13 +244,48 @@ impl<E: Evaluator> Searcher<E> {
         if depth <= 0 {
             return self.quiescence(pos, ply, alpha, beta);
         }
+
+        let key = pos.zobrist;
+        let orig_alpha = alpha;
+        let mut beta = beta;
+
+        //TT probe (bestmove + possible cutoff)
+        let mut tt_best = Move::NULL;
+        if let Some(entry) = self.tt.probe(key) {
+            tt_best = entry.best;
+
+            if (entry.depth as i32) >= depth {
+                let tt_score = Self::from_tt_score(entry.score, ply);
+
+                match entry.bound {
+                    Bound::Exact => return tt_score,
+                    Bound::Lower => {
+                        if tt_score > alpha {
+                            alpha = tt_score;
+                        }
+                    }
+                    Bound::Upper => {
+                        if tt_score > beta {
+                            beta = tt_score;
+                        }
+                    }
+                }
+
+                if alpha >= beta {
+                    return tt_score;
+                }
+            }
+        }
         let side_to_move = pos.player_to_move;
 
         self.move_buf.clear();
         generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
 
         if self.move_buf.is_empty() {
-            return self.terminal_score(pos, ply);
+            let s = self.terminal_score(pos, ply);
+
+            self.tt.store(key, depth, Self::to_tt_score(s, ply), Bound::Exact, Move::NULL);
+            return s;
         }
 
         //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
@@ -239,15 +293,20 @@ impl<E: Evaluator> Searcher<E> {
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
-            .map(|&m| (m, Self::move_order_score(pos, m)))
-            .collect();
+            .map(|&m| {
+                let tt_bonus = if m == tt_best { 1_000_000 } else {0 };
+                (m, Self::move_order_score(pos, m) + tt_bonus)
+            }).collect();
 
         scored_moves.sort_by_key(|&(_, score)| -score);
 
         let mut any_legal = false;
+        let mut best_mv = Move::NULL;
+        let mut aborted = false;
 
         for (mv, _) in scored_moves {
             if self.should_stop() {
+                aborted = true;
                 break;
             }
             let undo = pos.make_move_with_undo(mv);
@@ -268,6 +327,7 @@ impl<E: Evaluator> Searcher<E> {
 
             if score > alpha {
                 alpha = score;
+                best_mv = mv;
             }
             if alpha >= beta {
                 break;
@@ -275,9 +335,21 @@ impl<E: Evaluator> Searcher<E> {
         }
 
         if !any_legal {
-            return self.terminal_score(pos, ply);
+            let s = self.terminal_score(pos, ply);
+            self.tt.store(key, depth, Self::to_tt_score(s, ply), Bound::Exact, Move::NULL);
+            return s;
         }
-
+        //TT store (only if not aborted by time/nodes)
+        if !aborted {
+            let bound = if alpha <= orig_alpha {
+                Bound::Upper
+            } else if alpha >= beta {
+                Bound::Lower
+            } else {
+                Bound::Exact
+            };
+            self.tt.store(key, depth, Self::to_tt_score(alpha, ply), bound, best_mv);
+        }
         alpha
     }
 
@@ -804,6 +876,30 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_tt_does_not_change_result_fixed_depth() {
+    use crate::search::tt::TranspositionTable;
+
+    let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    let mut pos_a = Position::from_fen(fen).unwrap();
+    let mut pos_b = Position::from_fen(fen).unwrap();
+
+    let mut s_no_tt = Searcher::new(ClassicalEval::new());
+    s_no_tt.tt = TranspositionTable::disabled();
+
+    let mut s_tt = Searcher::new(ClassicalEval::new());
+    s_tt.tt = TranspositionTable::new_mb(8);
+
+    let limits = SearchLimits { max_depth: 4, max_nodes: None, max_time_ms: None };
+
+    let r1 = s_no_tt.search(&mut pos_a, limits);
+    let r2 = s_tt.search(&mut pos_b, limits);
+
+    assert_eq!(r1.best_move, r2.best_move);
+    assert_eq!(r1.score_cp, r2.score_cp);
+    assert_eq!(r1.depth, r2.depth);
+}
 }
 
 #[cfg(test)]
