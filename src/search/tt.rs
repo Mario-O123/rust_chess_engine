@@ -80,14 +80,17 @@ impl TranspositionTable {
      if self.entries.is_empty() {
         return;
      }
-     let idx = self.idx(key);
-     let existing_entry = self.entries[idx];
+     let slot_idx = self.idx(key);
+     let existing_entry = self.entries[slot_idx];
 
      let stored_depth = depth.clamp(0, i16::MAX as i32) as i16;
 
-     let replace = existing_entry.depth < 0 || existing_entry.key == key || stored_depth >= existing_entry.depth;
-     if replace {
-        self.entries[idx] = TTEntry {
+     let should_replace = existing_entry.depth < 0
+        || (existing_entry.key == key && stored_depth >= existing_entry.depth)
+        || (existing_entry.key != key && stored_depth > existing_entry.depth);
+
+     if should_replace {
+        self.entries[slot_idx] = TTEntry {
             key,
             depth: stored_depth,
             score,

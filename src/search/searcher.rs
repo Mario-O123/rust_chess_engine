@@ -480,13 +480,13 @@ impl<E: Evaluator> Searcher<E> {
     }
 
     fn is_mate_score(score: i32) -> bool {
-        score.abs() > MATE - 1000
+        score.abs() >= MATE - 1000
     }
 
     fn to_tt_score(score: i32, ply: i32) -> i32 {
-        if score > MATE - 1000 {
+        if score >= MATE - 1000 {
             score + ply
-        } else if score < -MATE + 1000 {
+        } else if score <= -MATE + 1000 {
             score - ply
         } else {
             score
@@ -494,9 +494,9 @@ impl<E: Evaluator> Searcher<E> {
     }
 
     fn from_tt_score(score: i32, ply: i32) -> i32 {
-        if score > MATE - 1000 {
+        if score >= MATE - 1000 {
             score - ply
-        } else if score > -MATE + 1000 {
+        } else if score <= -MATE + 1000 {
             score + ply
         } else {
             score
