@@ -1,7 +1,7 @@
-use std::process::{Command, Stdio, Child, ChildStdin, ChildStdout};
-use std::io::{BufRead, BufReader, Write};
-use std::sync::{Arc, Mutex};
 use anyhow::Result;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::{Arc, Mutex};
 
 /// Internal UCI engine that handles the actual communication
 struct UciEngine {
@@ -20,16 +20,20 @@ impl UciEngine {
         let stdin = process.stdin.take().unwrap();
         let stdout = BufReader::new(process.stdout.take().unwrap());
 
-        let mut engine = Self { process, stdin, stdout };
-        
+        let mut engine = Self {
+            process,
+            stdin,
+            stdout,
+        };
+
         // Initialize UCI
         engine.send("uci")?;
         engine.wait_for("uciok")?;
         engine.send("isready")?;
         engine.wait_for("readyok")?;
-        
+
         println!("UCI Engine initialized");
-        
+
         Ok(engine)
     }
 
@@ -54,11 +58,11 @@ impl UciEngine {
     }
 
     fn get_best_move(&mut self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
-        // Set position
+        // Set position (simple: always startpos + moves)
         if moves.is_empty() {
-            self.send(&format!("position fen {}", fen))?;
+            self.send("position startpos")?;
         } else {
-            self.send(&format!("position fen {} moves {}", fen, moves))?;
+            self.send(&format!("position startpos moves {}", moves))?;
         }
 
         // Search
@@ -66,7 +70,7 @@ impl UciEngine {
 
         // Get result
         let response = self.wait_for("bestmove")?;
-        
+
         // Parse "bestmove e2e4" -> "e2e4"
         let parts: Vec<&str> = response.split_whitespace().collect();
         if parts.len() >= 2 {
@@ -94,14 +98,16 @@ pub struct UciEngineHandle {
 impl UciEngineHandle {
     pub fn new(engine_path: &str) -> Result<Self> {
         let engine = UciEngine::new(engine_path)?;
-        Ok(Self { 
-            inner: Arc::new(Mutex::new(engine)) 
+        Ok(Self {
+            inner: Arc::new(Mutex::new(engine)),
         })
     }
-    
+
     /// Get best move for position (blocking call - use with spawn_blocking!)
     pub fn get_best_move(&self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
-        let mut engine = self.inner.lock()
+        let mut engine = self
+            .inner
+            .lock()
             .map_err(|e| anyhow::anyhow!("Engine lock poisoned: {}", e))?;
         engine.get_best_move(fen, moves, time_ms)
     }
@@ -109,7 +115,6 @@ impl UciEngineHandle {
 
 impl std::fmt::Debug for UciEngineHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UciEngineHandle")
-            .finish_non_exhaustive()
+        f.debug_struct("UciEngineHandle").finish_non_exhaustive()
     }
 }
