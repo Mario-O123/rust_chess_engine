@@ -5,5 +5,4 @@ pub mod evaluation;
 pub mod movegen;
 pub mod position;
 pub mod search;
-pub mod uci;
 pub mod utils;
