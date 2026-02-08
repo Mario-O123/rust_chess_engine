@@ -1,23 +1,3 @@
-use crate::position::Position;
-use super::Evaluator;
-
-pub struct NeuralEval;
-
-impl NeuralEval {
-    pub fn new() -> Self {
-        Self
-    }
-
-    //dummy load
-    pub fn load(path: &str) -> anyhow::Result<Self> {
-        Ok(Self)
-    }
-}
-
-impl Evaluator for NeuralEval {
-    //dummy eval
-    fn evaluate(&mut self, pos: &Position) -> i32 {
-        0
-    }
-
-}
+// place-holder
+pub mod evaluator;
+pub mod feature;
