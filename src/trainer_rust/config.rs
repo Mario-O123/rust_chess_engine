@@ -1,16 +1,17 @@
 //define constants here
 
-use std::path::PathBuf;
 
-pub const model_path: &str = "src/trainer_rust/models/mlp_checkpoint.json";
-pub const positions_path: &str = "/home/emil/chess_datsets/lichess_db_eval.jsonl";
+pub const CHUNK_PATH : &str = "D:\\127\\uni\\chessdata\\chunks\\chunk_1.jsonl"; //not needed anymore  was an alternative for dataset loading
+pub const MODEL_PATH: &str = "src/trainer_rust/models/mlp_checkpoint_2.json";
+pub const POSITIONS_PATH: &str = "D:/127/uni/chessdata/lichess_db_eval.jsonl";
+pub const OPTIMIZER_SAVE_PATH : &str = "src/trainer_rust/models/optimizer_checkpoint_2.json";
 
-pub const batch_start: usize = 0;
-pub const batch_end: usize = 1_000_000;
-pub const valid_start: usize = 1_000_000;
-pub const valid_end: usize = 1_200_000;
+pub const  MODEL_PATH_2 : &str = "src/trainer_rust/models/mlp_checkpoint_3.json";
+pub const OPTIMIZER_SAVE_PATH_2 : &str = "src/trainer_rust/models/optimizer_checkpoint_3.json";
+//file lines : 342059879
 
-pub const CHUNKS_DIR: &str = "";
-pub const chunk_size: usize = 0;
 
-//gelernte position grade 2m-2.6m
+
+
+
+
