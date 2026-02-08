@@ -56,4 +56,3 @@ impl<B: Backend> MLP<B> {
         return x;
     }
 }
-

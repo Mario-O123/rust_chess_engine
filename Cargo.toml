@@ -9,7 +9,7 @@ rand = "0.8"
 anyhow = "1"
 serde = { version = "1.0", features = ["derive"] }    
 serde_json = "1.0"  
-burn = { version = "0.20.0", features = ["wgpu", "autodiff", "dataset" , "ndarray"] }
+burn = { version = "0.20.0", features = [ "autodiff", "dataset" , "ndarray"] }
 
 [features]
 default = []

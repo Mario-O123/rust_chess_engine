@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn nn_eval_starting_pos(){
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_2.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -157,6 +157,7 @@ mod tests {
         assert!(score > 0);
     }
 }
+
 
 
 
