@@ -6,6 +6,7 @@ pub mod perft;
 pub mod pseudo_legal_movegen;
 
 // === Internal helpers ===
+mod attack;
 mod pawn;
 mod piece;
 
@@ -20,7 +21,7 @@ pub use attack::is_in_check;
 use crate::position::{self, Cell, Position};
 
 #[inline]
-fn is_capture(position: & Position, mv: Move) -> bool {
+fn is_capture(position: &Position, mv: Move) -> bool {
     mv.is_en_passant() || matches!(position.board[mv.to_sq()], Cell::Piece(_))
 }
 
@@ -56,9 +57,5 @@ pub fn generate_legal_captures_in_place(pos: &mut Position, out: &mut Vec<Move>)
         if legal {
             out.push(mv);
         }
-
     }
-
 }
-
-
