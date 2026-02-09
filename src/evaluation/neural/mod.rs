@@ -1,5 +1,5 @@
-use crate::position::Position;
 use super::Evaluator;
+use crate::position::Position;
 
 pub struct NeuralEval;
 
@@ -19,5 +19,4 @@ impl Evaluator for NeuralEval {
     fn evaluate(&mut self, pos: &Position) -> i32 {
         0
     }
-
 }

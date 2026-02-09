@@ -14,7 +14,17 @@ use crate::position::{Cell, Color, Position, Square};
 //main function, detects if given square is attacked
 pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) -> bool {
     let square120 = square.as_usize();
-    debug_assert!(is_on_board(square120));
+    debug_assert!(
+        is_on_board(square120),
+        "is_square_attacked: square120={} offboard, by_color={:?}, fen={}",
+        square120,
+        by_color,
+        position.to_fen()
+    );
+    if !is_on_board(square120) {
+        return false;
+    }
+
     attacked_by_pawn(position, square120, by_color)
         || attacked_by_knight(position, square120, by_color)
         || attacked_by_sliders(position, square120, by_color)
@@ -22,8 +32,25 @@ pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) 
 }
 
 pub fn is_in_check(position: &Position, color: Color) -> bool {
-    let king_sq = position.king_sq[color.idx()] as usize;
-    let king_square = Square::new(king_sq as u8);
+    let cached_king_sq120 = position.king_sq[color.idx()] as usize;
+
+    debug_assert!(
+        is_on_board(cached_king_sq120),
+        "cached_king_sq120 invalid: color={:?}, cached_king_sq120={}, fen={}",
+        color,
+        cached_king_sq120,
+        position.to_fen()
+    );
+
+    //release fallback
+    let king_sq120 = if is_on_board(cached_king_sq120) {
+        cached_king_sq120
+    } else {
+        //search king directly on board if cache is broken
+        find_king(position, color).expect("king missing on board")
+    };
+
+    let king_square = Square::new(king_sq120 as u8);
     let enemy = color.opposite();
     is_square_attacked(position, king_square, enemy)
 }
@@ -491,5 +518,28 @@ mod tests {
         assert!(!is_square_attacked(&pos, a1, Color::Black));
         assert!(!is_square_attacked(&pos, h8, Color::White));
         assert!(!is_square_attacked(&pos, h8, Color::Black));
+    }
+
+    //test to check for a particular sequence which resulted in error while playing
+    #[test]
+    fn regression_no_king_cache_offboard_after_sequence() {
+        use crate::movegen::{Move, generate_legal_moves_in_place};
+
+        //position short before error
+        let fen = "r1bqkbnr/1ppp1p1p/8/p3n2p/2B1P3/2N5/PPP2PPP/R1B1K1NR w KQkq - 0 7";
+        let mut pos = Position::from_fen(fen).unwrap();
+
+        let mut buf = Vec::new();
+        generate_legal_moves_in_place(&mut pos, &mut buf);
+
+        //h2h3 should be legal
+        let h2h3 = Move::from_uci("h2h3").unwrap();
+        assert!(
+            buf.iter().any(|m| *m == h2h3),
+            "h2h3 not found in legal moves"
+        );
+
+        let undo = pos.make_move_with_undo(h2h3);
+        pos.undo_move(undo);
     }
 }
