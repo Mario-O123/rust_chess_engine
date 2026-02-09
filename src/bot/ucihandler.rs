@@ -1,11 +1,13 @@
+use super::enginestate::EngineState;
 use std::io::{self, BufRead, Write};
 
-use rust_chess_engine::movegen::{Move, filter_legal_moves, generate_pseudo_legal_moves};
-use rust_chess_engine::position::Position;
+use crate::movegen::{Move, filter_legal_moves, generate_pseudo_legal_moves};
+use crate::position::Position;
 
 fn main() {
     let stdin = io::stdin();
     let mut out = io::stdout();
+
     let mut pos = Position::starting_position();
 
     let mut send = |s: &str| {
@@ -27,20 +29,32 @@ fn main() {
                 send("uciok");
             }
             "isready" => send("readyok"),
-            "ucinewgame" => pos = Position::starting_position(),
+            "ucinewgame" => {
+                // optional, aber sinnvoll
+                pos = Position::starting_position();
+            }
             "quit" => break,
             _ => {
                 if line.starts_with("position ") {
                     handle_position(line, &mut pos);
                 } else if line.starts_with("go") {
+                    // Minimal: ignorier depth/wtime/btime etc. — dein Bot nutzt movetime
                     let _movetime_ms = parse_movetime_ms(line).unwrap_or(1000);
+
+                    // “Terminal-Prototyp”-Enginezug: erster legaler Zug
                     let legal = legal_moves(&pos);
-                    if let Some(mv) = legal.first().copied() {
+                    let best = legal.first().copied();
+
+                    if let Some(mv) = best {
+                        // wichtig: UCI-Notation!
                         send(&format!("bestmove {}", mv.to_uci()));
-                        pos.make_move(mv);
+                        pos.make_move(mv); // optional: Engine kann ihre eigene Antwort direkt eintragen
                     } else {
+                        // keine legalen Züge (Matt/Pat) -> UCI-üblich:
                         send("bestmove 0000");
                     }
+                } else {
+                    // Unbekannt ignorieren
                 }
             }
         }
@@ -49,13 +63,15 @@ fn main() {
 
 fn handle_position(line: &str, pos: &mut Position) {
     let mut parts = line.split_whitespace();
-    let _ = parts.next();
+    let _ = parts.next(); // "position"
 
     match parts.next() {
         Some("startpos") => {
             *pos = Position::starting_position();
         }
-        Some("fen") => return,
+        Some("fen") => {
+            return;
+        }
         _ => return,
     }
 
