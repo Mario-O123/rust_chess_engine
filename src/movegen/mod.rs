@@ -6,7 +6,6 @@ pub mod perft;
 pub mod pseudo_legal_movegen;
 
 // === Internal helpers ===
-mod attack;
 mod pawn;
 mod piece;
 
