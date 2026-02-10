@@ -12,4 +12,5 @@ target/
 Thumbs.db
 
 # Rustup / Toolchain
-rustfmt.toml.bk
+rustfmt.toml.bk.env
+src/.env
