@@ -1,13 +1,10 @@
 //here we call the functions of the other files in the directory
-use burn::backend::{Autodiff , NdArray}; //both wgpu and ndarray loaded trained on both will remove in final version after done with training
+use burn::backend::{Autodiff, NdArray}; //both wgpu and ndarray loaded trained on both will remove in final version after done with training
 use burn::module::Module;
 use std::sync::Arc;
 
-use crate::trainer_rust::config::{
-     POSITIONS_PATH , MODEL_PATH_2 };
-use crate::trainer_rust::dataset::{
-    ChessDataset, create_valid_dataloader, load_dataset,
-};
+use crate::trainer_rust::config::{MODEL_PATH_2, POSITIONS_PATH};
+use crate::trainer_rust::dataset::{ChessDataset, create_valid_dataloader, load_dataset};
 use crate::trainer_rust::mlp_structure::MLP;
 use crate::trainer_rust::train::train;
 use burn::record::FullPrecisionSettings;
@@ -16,7 +13,7 @@ use burn::record::PrettyJsonFileRecorder;
 pub fn main() {
     //define backend and device to train on and recorder
     type B = Autodiff<NdArray<f32>>;
-    
+
     let device = Default::default();
 
     let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
@@ -40,7 +37,7 @@ pub fn main() {
     //initalize model and load state
     //if there is a trained modelavailable we use th line below the model initialization if not then we comment it out
     //try doing 781 256 128 32 and if thats better try removing one hiddenlayer and do maybe 781 256 32 or 256 64 because for nnue better to use less hidden layers?
-    let mut model = MLP::<B>::new(781, 256 , 64 ,  &device);
+    let mut model = MLP::<B>::new(781, 256, 64, &device);
     model = model.load_file(MODEL_PATH_2, &recorder, &device).unwrap();
 
     let _trained_model = train::<B>(model, dataset, val_dataloader, &device);

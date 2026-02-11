@@ -12,7 +12,7 @@ pub struct MLP<B: Backend> {
     pub fc1: Linear<B>,
     pub fc2: Linear<B>,
     pub fc3: Linear<B>,
-   // pub fc4: Linear<B>,
+    // pub fc4: Linear<B>,
 }
 
 impl<B: Backend> MLP<B> {
@@ -20,16 +20,16 @@ impl<B: Backend> MLP<B> {
         input_size: usize,
         hidden_layer1: usize,
         hidden_layer2: usize,
-       // hidden_layer3:usize,
+        // hidden_layer3:usize,
         device: &B::Device,
     ) -> Self {
         //the linear functions
         let fc1: Linear<B> = LinearConfig::new(input_size, hidden_layer1).init(device);
         let fc2: Linear<B> = LinearConfig::new(hidden_layer1, hidden_layer2).init(device);
         let fc3: Linear<B> = LinearConfig::new(hidden_layer2, 1).init(device);
-       // let fc4: Linear<B> = LinearConfig::new(hidden_layer3, 1).init(device);
+        // let fc4: Linear<B> = LinearConfig::new(hidden_layer3, 1).init(device);
 
-        Self { fc1, fc2, fc3}
+        Self { fc1, fc2, fc3 }
     }
     //the activation function for the hidden layer
     fn sc_relu(x: Tensor<B, 2>) -> Tensor<B, 2> {
@@ -37,7 +37,7 @@ impl<B: Backend> MLP<B> {
         return clipped.square();
     }
     //use only 2 dimensional vectors for mlp logic
-    //here we do the forward function of our mlp where we do linear forwards and then our activation function to calculate a score 
+    //here we do the forward function of our mlp where we do linear forwards and then our activation function to calculate a score
     pub fn forward(&self, x: Tensor<B, 2>) -> Tensor<B, 2> {
         let x = self.fc1.forward(x);
         //let x = activation::relu(x);
@@ -47,7 +47,7 @@ impl<B: Backend> MLP<B> {
         let x = self.fc2.forward(x);
         //let x = activation::relu(x);
         let x = Self::sc_relu(x);
-       // 
+        //
         let x = self.fc3.forward(x);
         //let x = Self::sc_relu(x);
 
@@ -56,4 +56,3 @@ impl<B: Backend> MLP<B> {
         return x;
     }
 }
-

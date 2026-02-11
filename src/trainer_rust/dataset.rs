@@ -6,15 +6,14 @@ use burn::data::dataloader::{DataLoader, DataLoaderBuilder};
 use burn::data::dataset::Dataset;
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use rand::seq::SliceRandom;
 use rand::seq::index::sample;
 use rand::thread_rng;
 use serde_json::Value;
 use std::collections::HashSet;
-use std::fs::{File};
+use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
-use rand::seq::SliceRandom;
-
 
 #[derive(Clone)]
 pub struct ChessDataset {
@@ -40,7 +39,6 @@ impl Dataset<([f32; 781], f32)> for ChessDataset {
 }
 
 pub struct ChessBatcher;
-
 
 //we define our own struct chessbatch which contains two vectors for the positions and the stockfish eval for each
 #[derive(Debug, Clone)]
@@ -87,7 +85,7 @@ pub fn create_dataloader<B: Backend>(
         .shuffle(597657)
         .build(dataset);
 }
-//also create the same thing but for the validation dataset without shuffling 
+//also create the same thing but for the validation dataset without shuffling
 pub fn create_valid_dataloader<B: Backend>(
     dataset: ChessDataset,
 ) -> Arc<dyn DataLoader<B, ChessBatch<B>>> {
@@ -97,15 +95,15 @@ pub fn create_valid_dataloader<B: Backend>(
 }
 
 //the function which gets called in trainer_main which will load the data from the main 342m dataset
- pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
+pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
     let dataset_size = 342_059_879;
     let batch_size = batch_size;
     let mut rng = thread_rng();
     let indices = sample(&mut rng, dataset_size, batch_size);
-    
+
     let hash_indices: HashSet<usize> = indices.iter().collect();
-    
-    let mut progress_counter : usize = 0;
+
+    let mut progress_counter: usize = 0;
     //first we open the file and store it in the variable
     let file = File::open(path).unwrap();
     //then we give the variable into the reader
@@ -120,9 +118,9 @@ pub fn create_valid_dataloader<B: Backend>(
             continue;
         };
         //print out the progress in loading the data so its transparent and you know its doing something
-        progress_counter +=1;
+        progress_counter += 1;
         if progress_counter % 10000 == 0 {
-        println!("loading position : {}", progress_counter);
+            println!("loading position : {}", progress_counter);
         }
         //get each positions(1 pos per line) from the jsonl
         let line = line.unwrap();
@@ -147,8 +145,7 @@ pub fn create_valid_dataloader<B: Backend>(
 
         if best_pv.get("cp").is_some() {
             let scale = 600.0;
-            label = ((best_pv.get("cp").and_then(Value::as_f64).unwrap() as f32) / scale).tanh() ;
-            
+            label = ((best_pv.get("cp").and_then(Value::as_f64).unwrap() as f32) / scale).tanh();
         } else {
             //if there is no cp in the pvs then there has to be a mate detected in which case we give it a more extreme evaluation
             //get mate labels as 1.5 or -1.5 so its outside the normal -1.0 - 1.0 range from tanh
@@ -165,21 +162,17 @@ pub fn create_valid_dataloader<B: Backend>(
         positions_x.push(decode_data(fen));
         evals_y.push(label);
 
-
-
-
-
-
         if positions_x.len() == batch_size {
             break;
         }
     }
     //here we zip together the evals and position because we want them to stay together when we shuffle the vectors for randomly distributed positions across our vector
-    let mut samples_vec: Vec<([f32; 781], f32)> = positions_x.into_iter().zip(evals_y.into_iter()).collect();
+    let mut samples_vec: Vec<([f32; 781], f32)> =
+        positions_x.into_iter().zip(evals_y.into_iter()).collect();
 
     samples_vec.shuffle(&mut rng);
 
-    let (positions_x_rndm , evals_y_rndm) = samples_vec.into_iter().unzip();
+    let (positions_x_rndm, evals_y_rndm) = samples_vec.into_iter().unzip();
 
     //we return our ChessDataset which has vec for positons and vec for the corresponding evals
     return ChessDataset {

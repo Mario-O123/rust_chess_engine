@@ -14,24 +14,22 @@ use burn::module::Module;
 use burn::nn::loss::MseLoss;
 use burn::nn::loss::Reduction;
 use burn::optim::Optimizer;
+use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::{Adam, AdamConfig, GradientsParams};
 use burn::prelude::ToElement;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
 use burn::record::Recorder;
-use burn::tensor::backend::{AutodiffBackend};
-use std::sync::Arc;
-use std::path::Path;
-use burn::optim::adaptor::OptimizerAdaptor;
+use burn::tensor::backend::AutodiffBackend;
 use std::io::{self, Write};
-
-
+use std::path::Path;
+use std::sync::Arc;
 
 pub fn train<B: AutodiffBackend>(
     mut model: MLP<B>,
     dataset: Arc<ChessDataset>,
     val_loader: Arc<dyn DataLoader<B, ChessBatch<B>>>,
-    device :  &B::Device,
+    device: &B::Device,
 ) -> MLP<B> {
     //initialize variable for later checking if val loss decreased
     let mut best_val_loss: f32 = 1000.0;
@@ -39,23 +37,23 @@ pub fn train<B: AutodiffBackend>(
     let optimizer_config = AdamConfig::new();
     let mut optimizer = optimizer_config.init();
     //load optimizer state if it exists
-   if Path::new(&OPTIMIZER_SAVE_PATH_2).exists() {
-    let device = device; // get backend device
-    let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
+    if Path::new(&OPTIMIZER_SAVE_PATH_2).exists() {
+        let device = device; // get backend device
+        let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
 
-    //load the  tje optimizer state in the record
-    let optimizer_record = recorder
-        .load::<<OptimizerAdaptor<Adam, MLP<B>, B> as Optimizer<MLP<B>, B>>::Record>(OPTIMIZER_SAVE_PATH_2.into(), device)
-        .expect("Failed to load optimizer record");
+        //load the  tje optimizer state in the record
+        let optimizer_record = recorder
+            .load::<<OptimizerAdaptor<Adam, MLP<B>, B> as Optimizer<MLP<B>, B>>::Record>(
+                OPTIMIZER_SAVE_PATH_2.into(),
+                device,
+            )
+            .expect("Failed to load optimizer record");
 
-    // then we load the optimizer from the record
-    optimizer = optimizer.load_record(optimizer_record);
+        // then we load the optimizer from the record
+        optimizer = optimizer.load_record(optimizer_record);
 
-    println!("Loaded optimizer from checkpoint.");
-}
-
-
-
+        println!("Loaded optimizer from checkpoint.");
+    }
 
     //initialie loss function and define learning rate of optimizer
     let loss_function = MseLoss::new();
@@ -70,10 +68,7 @@ pub fn train<B: AutodiffBackend>(
         let loader = DataLoaderBuilder::new(ChessBatcher)
             .batch_size(32)
             .shuffle(epoch as u64) //give epoch as seed to every epoch data gets shuffled again for more randomness and generalizing
-            .build(dataset.clone()); 
-
-        
-
+            .build(dataset.clone());
 
         //do the forward pass and loss , optimizer for each minibatch
         for batch in loader.iter() {
@@ -87,14 +82,15 @@ pub fn train<B: AutodiffBackend>(
             batch_num += 1;
             //change lr to ~5e-4 when new training runs arent are jumping too high then to 1e-4 and so on if overfitting or bigger batches?
             model = optimizer.step(lr, model, grads);
-            
+
             //progress of the run
             if batch_num % 1000 == 0 {
-             print!(
-                "\r\x1b[2KBatch {} - {:.2}% ",
-                batch_num, (batch_num as f32 / 140_000.0)*100.0 
-            );
-            io::stdout().flush().unwrap();
+                print!(
+                    "\r\x1b[2KBatch {} - {:.2}% ",
+                    batch_num,
+                    (batch_num as f32 / 140_000.0) * 100.0
+                );
+                io::stdout().flush().unwrap();
             }
             epoch_loss += loss_value;
         }
@@ -109,23 +105,33 @@ pub fn train<B: AutodiffBackend>(
             let val_loss_tensor = loss_function.forward(val_pred, val_evals, Reduction::Mean);
             let val_loss_value: f32 = val_loss_tensor.into_scalar().to_f32();
             valid_loss += val_loss_value;
-            valid_batches +=1;
+            valid_batches += 1;
         }
 
         //calculate the loss and translate it into cp by scaling back and/or using atanh though that could be worse
         let average_epoch_loss = epoch_loss / batch_num as f32;
         let average_valid_loss = valid_loss / valid_batches as f32;
         //let real_loss = average_epoch_loss.sqrt();
-        println!("Train - Epoch: {}     Loss: {}    cp: {}", epoch, average_epoch_loss, average_epoch_loss.sqrt() * 600.0);
-        println!("Valid - Epoch: {}     Loss: {}    cp: {}, weird cp: {}", epoch, average_valid_loss, average_valid_loss.sqrt() * 600.0, average_valid_loss.sqrt().atanh() * 600.0 );
-        
+        println!(
+            "Train - Epoch: {}     Loss: {}    cp: {}",
+            epoch,
+            average_epoch_loss,
+            average_epoch_loss.sqrt() * 600.0
+        );
+        println!(
+            "Valid - Epoch: {}     Loss: {}    cp: {}, weird cp: {}",
+            epoch,
+            average_valid_loss,
+            average_valid_loss.sqrt() * 600.0,
+            average_valid_loss.sqrt().atanh() * 600.0
+        );
+
         //if valid loss plateaus we decrease lr to counter overfitting
         if average_valid_loss > best_val_loss - 1e-4 {
-            lr = lr *0.5;
+            lr = lr * 0.5;
         }
-        
-        
-        //save a model if it preforms better doesnt save overfitted models 
+
+        //save a model if it preforms better doesnt save overfitted models
         if average_valid_loss < best_val_loss {
             best_val_loss = average_valid_loss;
             let best_model = model.clone(); // keep the best
@@ -138,8 +144,8 @@ pub fn train<B: AutodiffBackend>(
 
             let optimizer_record = optimizer.to_record();
             recorder
-            .record(optimizer_record, OPTIMIZER_SAVE_PATH_2.into()) // Path can be whatever you want
-            .expect("Failed to save optimizer");
+                .record(optimizer_record, OPTIMIZER_SAVE_PATH_2.into()) // Path can be whatever you want
+                .expect("Failed to save optimizer");
             println!("Still Fine!");
         }
     }
