@@ -1,8 +1,6 @@
 pub mod config;
-pub mod enginestate;
 pub mod lichess;
 pub mod uci;
-pub mod ucihandler;
 
 #[cfg(test)]
 mod test;

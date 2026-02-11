@@ -3,6 +3,7 @@ use anyhow::Result;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 
 pub const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -25,6 +26,7 @@ struct ChallengeInfo {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct GameFull {
     #[serde(rename = "type")]
     event_type: String,

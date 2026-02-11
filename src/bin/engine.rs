@@ -1,12 +1,19 @@
 use std::io::{self, BufRead, Write};
 
+use rust_chess_engine::evaluation::ClassicalEval;
 use rust_chess_engine::movegen::{Move, filter_legal_moves, generate_pseudo_legal_moves};
 use rust_chess_engine::position::Position;
+use rust_chess_engine::search::{SearchLimits, Searcher};
+
+const MOVETIME: u64 = 2000;
+const MAXDEPTH: u8 = 12;
 
 fn main() {
     let stdin = io::stdin();
     let mut out = io::stdout();
     let mut pos = Position::starting_position();
+    // Here we can also change to neural evaluation
+    let mut searcher = Searcher::new(ClassicalEval::new());
 
     let mut send = |s: &str| {
         writeln!(out, "{s}").unwrap();
@@ -33,13 +40,20 @@ fn main() {
                 if line.starts_with("position ") {
                     handle_position(line, &mut pos);
                 } else if line.starts_with("go") {
-                    let _movetime_ms = parse_movetime_ms(line).unwrap_or(1000);
-                    let legal = legal_moves(&pos);
-                    if let Some(mv) = legal.first().copied() {
-                        send(&format!("bestmove {}", mv.to_uci()));
-                        pos.make_move(mv);
-                    } else {
+                    let movetime_ms = parse_movetime_ms(line).unwrap_or(MOVETIME);
+
+                    let limits = SearchLimits {
+                        max_depth: MAXDEPTH,
+                        max_nodes: None,
+                        max_time_ms: Some(movetime_ms),
+                    };
+
+                    let result = searcher.search(&mut pos, limits);
+
+                    if result.best_move.is_null() {
                         send("bestmove 0000");
+                    } else {
+                        send(&format!("bestmove {}", result.best_move.to_uci()));
                     }
                 }
             }

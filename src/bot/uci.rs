@@ -57,7 +57,7 @@ impl UciEngine {
         }
     }
 
-    fn get_best_move(&mut self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
+    fn get_best_move(&mut self, _fen: &str, moves: &str, time_ms: u64) -> Result<String> {
         // Set position (simple: always startpos + moves)
         if moves.is_empty() {
             self.send("position startpos")?;
