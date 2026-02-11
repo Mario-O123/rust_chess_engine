@@ -9,7 +9,7 @@ pub fn filter_legal_moves(position: &Position, moves: &[Move]) -> Vec<Move> {
 
     for mv in moves.iter().copied() {
         let undo = pos.make_move_with_undo(mv);
-        
+
         let moved_color = pos.player_to_move.opposite();
 
         // Check if own King is in check
