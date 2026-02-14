@@ -17,10 +17,14 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
         if sq64 < 0 {
             continue;
         }
+        let row = sq64 / 8;
+        let col = sq64 % 8;
+        let sq64_flipped = (7 - row) * 8 + col;
+
         match cell {
             Cell::Empty => {}
             Cell::Piece(piece) => {
-                let index = decode_pos_pieces(piece).unwrap() * 64 + sq64 as usize;
+                let index = decode_pos_pieces(piece).unwrap() * 64 + sq64_flipped as usize;
 
                 features[index] = 1.0;
             }
@@ -50,7 +54,10 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
     if position.en_passant_square != None {
         let square_index = position.en_passant_square.unwrap().as_usize();
         let square_index_64 = SQUARE120_TO_SQUARE64[square_index];
-        features[773 + ((square_index_64 % 8) as usize)] = 1.0;
+        if square_index_64 >= 0 {
+            features[773 + ((square_index_64 % 8) as usize)] = 1.0;    
+        }
+        
     }
 
     return features;
@@ -77,4 +84,46 @@ fn decode_pos_pieces(piece: &Piece) -> Option<usize> {
             PieceKind::King => Some(11),
         }
     }
+}
+
+#[cfg(test)]
+mod nn_alignment_tests {
+    use super::decode_pos_nn;
+    use crate::position::Position;
+    use crate::trainer_rust::decode_fen::decode_data;
+
+    /// Returns all indices set to 1 in a given 64-square piece plane
+    fn ones_in_plane(features: &[f32; 781], plane: usize) -> Vec<usize> {
+        let start = plane * 64;
+        let end = start + 64;
+        let mut out = Vec::new();
+        for (i, &v) in features[start..end].iter().enumerate() {
+            if (v - 1.0).abs() < 1e-6 {
+                out.push(i);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn engine_matches_trainer_feature_indices() {
+        // FEN: White king on a1, Black king on h8
+        let fen = "7k/8/8/8/8/8/8/K7 w - - 0 1";
+        let pos = Position::from_fen(fen).expect("FEN should parse");
+
+        // Engine and trainer features
+        let feat_engine = decode_pos_nn(&pos);
+        let feat_trainer = decode_data(fen);
+
+        // Compare all 12 piece planes
+        for plane in 0..12 {
+            let eng = ones_in_plane(&feat_engine, plane);
+            let trn = ones_in_plane(&feat_trainer, plane);
+            assert_eq!(eng, trn, "Piece plane {} does not match trainer", plane);
+        }
+
+        // Compare remaining neurons (player to move, castling, en passant)
+        assert_eq!(&feat_engine[768..], &feat_trainer[768..], "Non-piece features mismatch");
+    }
+
 }

@@ -1,8 +1,11 @@
 //IMPORTANT: DONT CHANGE THINGS HERE UNLESS MODEL CHANGES TOO BECAUSE THIS CODE GETS CALLED IN THE FINAL FORWARD TOO
-
+#[cfg(feature = "nn")]
 use burn::module::Module;
+#[cfg(feature = "nn")]
 use burn::nn::{Linear, LinearConfig};
+#[cfg(feature = "nn")]
 use burn::tensor::Tensor;
+#[cfg(feature = "nn")]
 use burn::tensor::backend::Backend;
 
 //commented lines here are often placeholders because i frequently tweaked number of hidden layers to see which performed best

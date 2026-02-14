@@ -7,7 +7,7 @@
 
 use crate::trainer_rust::config::{MODEL_PATH_2, OPTIMIZER_SAVE_PATH_2};
 use crate::trainer_rust::dataset::{ChessBatch, ChessBatcher, ChessDataset};
-use crate::trainer_rust::mlp_structure::MLP;
+use crate::nn_model::mlp_structure::MLP;
 use burn::data::dataloader::{DataLoader, DataLoaderBuilder};
 use burn::module::AutodiffModule;
 use burn::module::Module;

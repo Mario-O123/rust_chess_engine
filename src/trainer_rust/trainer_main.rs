@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::trainer_rust::config::{MODEL_PATH_2, POSITIONS_PATH};
 use crate::trainer_rust::dataset::{ChessDataset, create_valid_dataloader, load_dataset};
-use crate::trainer_rust::mlp_structure::MLP;
+use crate::nn_model::mlp_structure::MLP;
 use crate::trainer_rust::train::train;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;

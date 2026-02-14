@@ -9,8 +9,9 @@ rand = "0.8"
 anyhow = "1"
 serde = { version = "1.0", features = ["derive"] }    
 serde_json = "1.0"  
-burn = { version = "0.20.0", features = ["autodiff", "dataset" , "ndarray"] }
+burn = { version = "0.20.0",optional = true ,  default-features = false, features = [ "ndarray"] }
 
 [features]
 default = []
-nn = []
+nn = ["dep:burn"]
+trainer = ["dep:burn", "burn/autodiff", "burn/dataset"]  

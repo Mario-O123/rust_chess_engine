@@ -8,3 +8,4 @@ pub mod position;
 pub mod search;
 pub mod trainer_rust;
 pub mod utils;
+pub mod nn_model;

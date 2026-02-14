@@ -3,7 +3,7 @@
 use super::super::Evaluator;
 use crate::evaluation::neural::feature::decode_pos_nn;
 use crate::position::Position;
-use crate::trainer_rust::mlp_structure::MLP;
+use crate::nn_model::mlp_structure::MLP;
 use burn::module::Module;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
@@ -17,14 +17,14 @@ pub struct NeuralEval<B: Backend> {
 
 impl<B: Backend> NeuralEval<B> {
     //loading our device recorder and model
-    pub fn load(model_path: &str) -> Self {
+    pub fn load(model_path: &str) -> anyhow::Result<Self> {
         //type B = NdArrayDevice;//(CPU)
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);
         model = model.load_file(model_path, &recorder, &device).unwrap();
 
-        Self { model, device }
+        Ok(Self { model, device })
     }
     //deocdeing the Position struct into our neuron format
     fn encode(&self, position: &Position) -> Tensor<B, 2> {
@@ -49,7 +49,7 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
             return -30_000;
         }
 
-        let cp_score: f32 = 600.0 * score.atanh(); //.atanh();
+        let cp_score: f32 = 600.0 * score; //.atanh();
         return cp_score.clamp(-30_000.0, 30_000.0) as i32;
     }
 }
@@ -69,7 +69,7 @@ mod tests {
         let pos = Position::starting_position();
 
         //run the mlp forward pass on it
-        let score = eval.evaluate(&pos);
+        let score = eval.unwrap().evaluate(&pos);
 
         println!("score : {}", score);
 
@@ -90,7 +90,7 @@ mod tests {
             Position::from_fen("2r1N3/2P5/1b1rkp2/B1P1Pp2/1R1p4/5N2/6B1/K7 w - - 0 1").unwrap();
 
         //run the forward
-        let score = eval.evaluate(&pos);
+        let score = eval.unwrap().evaluate(&pos);
 
         println!("score : {}", score);
 
@@ -108,7 +108,7 @@ mod tests {
         let pos =
             Position::from_fen("2B1k3/5N2/P5p1/BpK1p2R/2b1P3/5r2/P5P1/5n2 w - - 0 1").unwrap();
 
-        let score = eval.evaluate(&pos);
+        let score = eval.unwrap().evaluate(&pos);
 
         println!("score : {}", score);
 
@@ -127,7 +127,7 @@ mod tests {
             Position::from_fen("r3k2r/pn1b1p1p/6p1/1Pp1P3/6n1/P4N2/2P2PPP/R3KB1R w KQkq - 0 16")
                 .unwrap();
 
-        let score = eval.evaluate(&pos);
+        let score = eval.unwrap().evaluate(&pos);
 
         println!("score : {}", score);
 
@@ -146,7 +146,7 @@ mod tests {
         )
         .unwrap();
 
-        let score = eval.evaluate(&pos);
+        let score = eval.unwrap().evaluate(&pos);
 
         println!("score : {}", score);
 
