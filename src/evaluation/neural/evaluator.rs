@@ -48,8 +48,8 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
         if score <= -1.2 {
             return -30_000;
         }
-
-        let cp_score: f32 = 600.0 * score; //.atanh();
+        let s = score.clamp(-1.0 , 1.0);
+        let cp_score: f32 = 600.0 * s.atanh(); //.atanh();
         return cp_score.clamp(-30_000.0, 30_000.0) as i32;
     }
 }
