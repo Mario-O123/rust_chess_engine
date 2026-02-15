@@ -247,6 +247,7 @@ impl<E: Evaluator> Searcher<E> {
 
         let key = pos.zobrist;
         let orig_alpha = alpha;
+        let orig_beta = beta;
         let mut beta = beta;
 
         //TT probe (bestmove + possible cutoff)
@@ -265,7 +266,7 @@ impl<E: Evaluator> Searcher<E> {
                         }
                     }
                     Bound::Upper => {
-                        if tt_score > beta {
+                        if tt_score < beta {
                             beta = tt_score;
                         }
                     }
@@ -343,7 +344,7 @@ impl<E: Evaluator> Searcher<E> {
         if !aborted {
             let bound = if alpha <= orig_alpha {
                 Bound::Upper
-            } else if alpha >= beta {
+            } else if alpha >= orig_beta {
                 Bound::Lower
             } else {
                 Bound::Exact
