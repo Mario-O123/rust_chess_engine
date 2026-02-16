@@ -14,4 +14,13 @@ burn = { version = "0.20.0",optional = true ,  default-features = false, feature
 [features]
 default = []
 nn = ["dep:burn"]
-trainer = ["dep:burn", "burn/autodiff", "burn/dataset"]  
+trainer = ["dep:burn", "burn/autodiff", "burn/dataset"]
+
+[[bin]]
+name = "terminal_proto_classical"
+path = "src/bin/terminal_proto_classical.rs"
+
+[[bin]]
+name = "terminal_proto_neural"
+path = "src/bin/terminal_proto_neural.rs"
+required-features = ["nn"]
