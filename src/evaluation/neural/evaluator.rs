@@ -5,8 +5,8 @@ use crate::evaluation::neural::feature::decode_pos_nn;
 use crate::position::Position;
 use crate::nn_model::mlp_structure::MLP;
 use burn::module::Module;
-use burn::record::FullPrecisionSettings;
-use burn::record::PrettyJsonFileRecorder;
+use burn::record::{FullPrecisionSettings, PrettyJsonFileRecorder, Recorder};
+use std::path::PathBuf;
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 
@@ -22,7 +22,10 @@ impl<B: Backend> NeuralEval<B> {
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);
-        model = model.load_file(model_path, &recorder, &device).unwrap();
+        
+        let record = recorder.load(PathBuf::from(model_path), &device)?;
+
+        model = model.load_record(record);
 
         Ok(Self { model, device })
     }
