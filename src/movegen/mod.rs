@@ -13,7 +13,7 @@ mod piece;
 pub use legal_move_filter::filter_legal_moves;
 pub use r#move::{Move, MoveType, PromotionPiece};
 pub use perft::perft;
-pub use pseudo_legal_movegen::generate_pseudo_legal_moves;
+pub use pseudo_legal_movegen::{generate_pseudo_legal_moves, generate_pseudo_legal_moves_in_place};
 
 pub use attack::is_in_check;
 

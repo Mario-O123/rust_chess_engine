@@ -144,7 +144,7 @@ pub fn gen_castling_moves(position: &Position, moves: &mut Vec<Move>, king_from:
                     })
                 )
                 && !is_square_attacked(position, king_from_sq, Color::White)
-                && !is_square_attacked(position, Square::new(9), Color::White)
+                && !is_square_attacked(position, Square::new(94), Color::White)
                 && !is_square_attacked(position, Square::new(93), Color::White)
             {
                 moves.push(Move::new_castling(king_from, 93));
