@@ -4,6 +4,7 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
+use crate::position::{Color, Position};
 
 pub const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -330,9 +331,20 @@ impl LichessBot {
         }
         *last_move_count = move_count;
 
+
+        let start_to_move = match Position::from_fen(fen) {
+            Ok(pos ) => pos.player_to_move,
+            Err(_) => Color::White,
+        };
+        let side_to_move_now = if move_count &2 == 0 {
+            start_to_move
+        } else {
+            start_to_move.opposite()
+        };
+
         let is_my_turn = match my_color.as_deref() {
-            Some("white") => move_count % 2 == 0,
-            Some("black") => move_count % 2 == 1,
+            Some("white") => side_to_move_now == Color::White,
+            Some("black") => side_to_move_now == Color::Black,
             _ => {
                 println!("Color not determined yet");
                 return Ok(());

@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use super::lichess::STARTPOS_FEN;
 
 /// Internal UCI engine that handles the actual communication
 struct UciEngine {
@@ -57,12 +58,21 @@ impl UciEngine {
         }
     }
 
-    fn get_best_move(&mut self, _fen: &str, moves: &str, time_ms: u64) -> Result<String> {
-        // Set position (simple: always startpos + moves)
+    fn get_best_move(&mut self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
+        //startpos for standard games, "position fen..." for games that start from a custom initial position
+        let fen = fen.trim();
+        if fen == STARTPOS_FEN {
         if moves.is_empty() {
             self.send("position startpos")?;
         } else {
             self.send(&format!("position startpos moves {}", moves))?;
+        }
+        } else {
+            if moves.is_empty() {
+                self.send(&format!("position fen {}", fen))?;
+            } else {
+                self.send(&format!("position fen {} moves {}", fen, moves))?;
+            }
         }
 
         // Search
