@@ -69,7 +69,17 @@ fn handle_position(line: &str, pos: &mut Position) {
         Some("startpos") => {
             *pos = Position::starting_position();
         }
-        Some("fen") => return,
+        Some("fen") => {
+            let fen_fields: Vec<&str> = parts.by_ref().take(6).collect();
+            if fen_fields.len() != 6 {
+                return;
+            }
+            let fen = fen_fields.join(" ");
+
+            let Ok(parsed) = Position::from_fen(&fen) else { return; };
+
+            *pos = parsed;
+        }
         _ => return,
     }
 
