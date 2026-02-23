@@ -1,10 +1,9 @@
 use super::{BotConfig, UciEngineHandle};
+use crate::position::{Color, Position};
 use anyhow::Result;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
-use serde_json::Value;
-use crate::position::{Color, Position};
 
 pub const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -55,6 +54,7 @@ fn player_id(p: &Player) -> Option<&str> {
         .or_else(|| p.user.as_ref().map(|u| u.id.as_str()))
 }
 
+#[warn(dead_code)]
 #[derive(Debug, Deserialize)]
 struct GameState {
     #[serde(rename = "type", default)]
@@ -274,7 +274,7 @@ impl LichessBot {
 
                     match state.status.as_str() {
                         "started" => {
-                            // WICHTIG: erst handeln, wenn Farbe bekannt
+                            // IMPORTANT: handle after color is known
                             if my_color.is_some() {
                                 self.handle_state(
                                     &state,
@@ -331,12 +331,11 @@ impl LichessBot {
         }
         *last_move_count = move_count;
 
-
         let start_to_move = match Position::from_fen(fen) {
-            Ok(pos ) => pos.player_to_move,
+            Ok(pos) => pos.player_to_move,
             Err(_) => Color::White,
         };
-        let side_to_move_now = if move_count &2 == 0 {
+        let side_to_move_now = if move_count % 2 == 0 {
             start_to_move
         } else {
             start_to_move.opposite()

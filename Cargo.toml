@@ -22,6 +22,7 @@ dotenv = "0.15"
 
 [features]
 default = []
+neural-eval = [] 
 nn = ["dep:burn"]
 trainer = ["dep:burn", "burn/autodiff", "burn/dataset"]
 

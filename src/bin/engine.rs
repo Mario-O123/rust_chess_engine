@@ -5,15 +5,17 @@ use rust_chess_engine::movegen::{Move, filter_legal_moves, generate_pseudo_legal
 use rust_chess_engine::position::Position;
 use rust_chess_engine::search::{SearchLimits, Searcher};
 
-const MOVETIME: u64 = 2000;
+const DEFAULT_MOVETIME: u64 = 2000;
 const MAXDEPTH: u8 = 12;
 
 fn main() {
     let stdin = io::stdin();
     let mut out = io::stdout();
     let mut pos = Position::starting_position();
-    // Here we can also change to neural evaluation
-    let mut searcher = Searcher::new(ClassicalEval::new());
+
+    // Starts on default with classical evaluation
+    // To use neural evaluation use "cargo run --release --features neural-eval --bin bot"
+    let mut searcher = make_searcher();
 
     let mut send = |s: &str| {
         writeln!(out, "{s}").unwrap();
@@ -40,7 +42,7 @@ fn main() {
                 if line.starts_with("position ") {
                     handle_position(line, &mut pos);
                 } else if line.starts_with("go") {
-                    let movetime_ms = parse_movetime_ms(line).unwrap_or(MOVETIME);
+                    let movetime_ms = parse_movetime_ms(line).unwrap_or(DEFAULT_MOVETIME);
 
                     let limits = SearchLimits {
                         max_depth: MAXDEPTH,
@@ -76,7 +78,9 @@ fn handle_position(line: &str, pos: &mut Position) {
             }
             let fen = fen_fields.join(" ");
 
-            let Ok(parsed) = Position::from_fen(&fen) else { return; };
+            let Ok(parsed) = Position::from_fen(&fen) else {
+                return;
+            };
 
             *pos = parsed;
         }
@@ -109,6 +113,18 @@ fn parse_movetime_ms(line: &str) -> Option<u64> {
         }
     }
     None
+}
+
+#[cfg(feature = "neural-eval")]
+fn make_searcher() -> Searcher<NeuralEval> {
+    let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+    let eval = NeuralEval::load(model_path).expect("failed to load model");
+    Searcher::new(eval)
+}
+
+#[cfg(not(feature = "neural-eval"))]
+fn make_searcher() -> Searcher<ClassicalEval> {
+    Searcher::new(ClassicalEval::new())
 }
 
 fn legal_moves(pos: &Position) -> Vec<Move> {
