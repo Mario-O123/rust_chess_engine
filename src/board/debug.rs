@@ -72,7 +72,7 @@ pub fn debug_check_mapping_square64_square120() {
         }
     }
 
-    // Test 2: 120 -> 64 -> 120 Round-Trip (nur valide Felder)
+    // Test 2: 120 -> 64 -> 120 Round-Trip (only valid Errors)
     for square120 in 0..120 {
         if SQUARE120_TO_SQUARE64[square120] == OFFBOARD {
             continue;
@@ -88,7 +88,7 @@ pub fn debug_check_mapping_square64_square120() {
         }
     }
 
-    // Test 3: Zähle valide Felder
+    // Test 3: Count valids
     let valid_count = (0..120)
         .filter(|&square| SQUARE120_TO_SQUARE64[square] != OFFBOARD)
         .count();
