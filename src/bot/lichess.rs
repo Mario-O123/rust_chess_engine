@@ -217,7 +217,7 @@ impl LichessBot {
             let chunk = chunk?;
             buf.push_str(&String::from_utf8_lossy(&chunk));
 
-            // Solange wir vollständige Zeilen haben, verarbeiten
+        
             while let Some(nl) = buf.find('\n') {
                 let line = buf[..nl].trim().to_string();
                 buf.drain(..nl + 1);

@@ -3,7 +3,7 @@ mod tests {
     use super::super::*;
     use std::io::Write;
 
-    // Mock UCI Engine für Tests
+    // Mock UCI Engine for Tests
     const MOCK_ENGINE_SCRIPT: &str = r#"#!/bin/bash
 while IFS= read -r line; do
     case "$line" in
@@ -35,7 +35,7 @@ done
 
         let temp_dir = std::env::temp_dir();
 
-        // Eindeutiger Dateiname pro Test!
+        
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -98,13 +98,13 @@ done
         unsafe {
             std::env::set_var("LICHESS_TOKEN", "lip_test");
             std::env::remove_var("ENGINE_PATH");
-            std::env::remove_var("MOVETIME_MS"); // Das reicht nicht!
+            std::env::remove_var("MOVETIME_MS"); // Not enough
 
-            // Warte kurz damit env vars sich updaten
+            // Wait so env vars can update
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        // Prüfe dass Vars wirklich weg sind
+        // Check Vars 
         assert!(
             std::env::var("MOVETIME_MS").is_err(),
             "MOVETIME_MS should be unset"
