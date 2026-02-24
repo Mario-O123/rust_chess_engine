@@ -1,5 +1,3 @@
-// const sliding: [bool;5] = [false, true, true, true, false]; //knight bishop rook queen king
-
 use crate::board::mailbox120::{
     BISHOP_DIRECTIONS, BOARD_SIZE, KNIGHT_DIRECTIONS, QUEEN_DIRECTIONS as KING_QUEEN_DIRECTIONS,
     ROOK_DIRECTIONS, is_on_board,

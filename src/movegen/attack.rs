@@ -197,7 +197,7 @@ pub fn find_king(position: &Position, color: Color) -> Option<usize> {
     None
 }
 
-//gibt square120 indizes der angreifer wieder
+//gives square120 index of attackers
 pub fn attackers_of_square(position: &Position, square120: usize, by_color: Color) -> Vec<usize> {
     let mut attackers = Vec::new();
 
@@ -478,7 +478,7 @@ mod tests {
 
         let e8 = sq(4, 7);
         let e1 = sq(4, 0);
-        let a1 = sq(0, 0); // irgendwo für den weißen König
+        let a1 = sq(0, 0); 
 
         put(&mut pos, e8, Color::Black, PieceKind::King);
         put(&mut pos, e1, Color::White, PieceKind::Rook);
