@@ -23,7 +23,7 @@ impl State {
         Self {
             board: pos.board,
             player_to_move: pos.player_to_move,
-             en_passant_square: pos.en_passant_square,
+            en_passant_square: pos.en_passant_square,
             castling_rights: pos.castling_rights,
             zobrist: pos.zobrist,
             half_move_clock: pos.half_move_clock,
@@ -71,11 +71,8 @@ impl GameState {
         }
         self.history.pop(); // remove current position snapshot
         self.undo_stack.pop()
-    }    
-
-
+    }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Undo {

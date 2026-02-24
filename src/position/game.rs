@@ -33,10 +33,18 @@ impl Game {
             gamestatus: GameStatus::Ongoing,
         }
     }
-    pub fn position(&self) -> &Position {&self.position}
-    pub fn position_mut(&mut self) -> &mut Position {&mut self.position}
-    pub fn status(&self) -> GameStatus {self.gamestatus}
-    pub fn gamestate(&self) -> &GameState {&self.gamestate}
+    pub fn position(&self) -> &Position {
+        &self.position
+    }
+    pub fn position_mut(&mut self) -> &mut Position {
+        &mut self.position
+    }
+    pub fn status(&self) -> GameStatus {
+        self.gamestatus
+    }
+    pub fn gamestate(&self) -> &GameState {
+        &self.gamestate
+    }
 
     //checks all draw and checkmate options
     fn compute_status(&self) -> GameStatus {
