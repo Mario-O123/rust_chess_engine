@@ -1,13 +1,19 @@
+//! this module contains small helper functions around:
+//! -converting mailbox120 indices to file/rank,
+//! -parsing algebraic square notation,
+//! -converting between piece codes and characters
+
 use super::mailbox120::{
     BOARD_SIZE, OFFBOARD, SQUARE64_TO_SQUARE120, SQUARE120_TO_SQUARE64, is_on_board,
     square120_from_file_rank,
 };
 
-//note: maybe change the type of file, rank (u8) to usize to match the parameters given in square120_from_file_rank
-//extract File and Rank out ouf 120 Index
-//Preconditions:
-//square120 < BOARD_SIZE
-//square120 is not OFFBOARD
+///extracts (file, rank) from a mailbox120 square index
+/// 
+///# preconditions:
+/// -square120 < BOARD_SIZE
+/// -SQUARE120_TO_SQUARE64[square120] != OFFBOARD
+/// these are enforced via debug_assert! in debug builds
 #[inline]
 pub fn file_rank_from_square120(square120: usize) -> (u8, u8) {
     debug_assert!(square120 < BOARD_SIZE);
@@ -30,6 +36,8 @@ pub fn square120_to_string(square120: usize) -> Option<String> {
     let rank_char = (b'1' + rank) as char;
     Some(format!("{}{}", file_char, rank_char))
 }
+
+///parses algebraic notation (eg "A1", "e4") into a mailbox120 square index, returns "None" in invalid cases
 pub fn square120_from_string(s: &str) -> Option<usize> {
     let b = s.as_bytes();
     if b.len() != 2 {
@@ -79,6 +87,8 @@ pub fn piece_to_char(piece: i8) -> char {
     }
 }
 
+///converts an ASCII piece character into the internal piece code
+///supported inputs: "P N B R Q K" (white) and "p n b r q k" (black)
 pub fn char_to_piece(c: char) -> Option<i8> {
     match c {
         'P' => Some(1),
@@ -117,8 +127,12 @@ pub fn piece_to_char_unicode(p: i8) -> char {
         _ => '·',
     }
 }
-//submodule debug.rs uses the lookup tables directly, however
-//the current plan is using thin wrappers for the lookups, for use in position/fen.r
+
+///converts a mailbox120 index to a square64 index, uses a safer API
+/// 
+/// # note: we have many instances where we simply use the mailbox120.rs mapping SQUARE120_TO_SQUARE64
+/// instead of using this wrapper, in a more thorough clear-up one of the variants should
+/// probably be used as the standard across all files
 #[inline]
 pub fn square120_to_square64(square120: usize) -> Option<usize> {
     if square120 >= BOARD_SIZE {
@@ -133,6 +147,9 @@ pub fn square120_to_square64(square120: usize) -> Option<usize> {
     }
 }
 
+///converts a square64 index to a mailbox120 index, uses a safer API
+/// 
+/// # note: same case as above
 #[inline]
 pub fn square64_to_square120(square64: usize) -> Option<usize> {
     if square64 >= 64 {
@@ -144,10 +161,12 @@ pub fn square64_to_square120(square64: usize) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    //! unit tests for conversion helpers and invariants
     use super::*;
 
+    ///file_rank_from_square120 has to be consistent with square120_from_file_rank
     #[test]
-    fn file_ran_from_square120_matches_square120_from_file_rank() {
+    fn file_rank_from_square120_matches_square120_from_file_rank() {
         for file in 0..8 {
             for rank in 0..8 {
                 let square120 = square120_from_file_rank(file, rank);
@@ -172,6 +191,7 @@ mod tests {
         assert_eq!(square120_from_string("E4"), square120_from_string("e4"));
     }
 
+    /// # note: the array of string slices for this test was created using a LLM
     #[test]
     fn square120_from_string_rejects_invalid_inputs() {
         for s in ["", "a", "a0", "a9", "aa", "A0", "a56", "i1", "11"] {
@@ -179,6 +199,7 @@ mod tests {
         }
     }
 
+    ///round-trip square120-> string-> square120 must preserve the square
     #[test]
     fn square120_to_string_and_back_returns_same_square120() {
         for file in 0..8 {
@@ -196,6 +217,7 @@ mod tests {
         }
     }
 
+    ///round-trip: square64-> square120-> square64 must preserve the index
     #[test]
     fn square64_to_120_and_back_returns_same_square64() {
         for square64 in 0..64 {
