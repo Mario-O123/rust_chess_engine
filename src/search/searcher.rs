@@ -125,6 +125,7 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
+    
     fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
         const TT_BONUS: i32 = 1_000_000;
         
@@ -221,6 +222,7 @@ impl<E: Evaluator> Searcher<E> {
         (best_mv, alpha, complete)
     }
 
+    
     fn negamax(
         &mut self,
         pos: &mut Position,
@@ -289,8 +291,6 @@ impl<E: Evaluator> Searcher<E> {
             return s;
         }
 
-        //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
-
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
@@ -354,6 +354,7 @@ impl<E: Evaluator> Searcher<E> {
         alpha
     }
 
+    
     fn quiescence(&mut self, pos: &mut Position, ply: i32, mut alpha: i32, beta: i32) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
@@ -369,8 +370,6 @@ impl<E: Evaluator> Searcher<E> {
             if self.move_buf.is_empty() {
                 return -MATE + ply as i32;
             }
-
-            //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
 
             let mut scored_moves: Vec<(Move, i32)> = self
                 .move_buf
@@ -428,7 +427,7 @@ impl<E: Evaluator> Searcher<E> {
         }
         self.move_buf.clear();
         generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
-        //self.move_buf.sort_by_key(|&m| -Self::move_order_score(pos, m));
+        
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
@@ -559,7 +558,7 @@ impl<E: Evaluator> Searcher<E> {
             // a/h-file
             else if file == 0 || file == 7 {
                 s -= 20;
-            } // a/h-file
+            }
         }
 
         if let Cell::Piece(p) = pos.board[mv.from_sq()] {
@@ -597,7 +596,9 @@ impl<E: Evaluator> Searcher<E> {
     }
 }
 
+
 #[cfg(test)]
+//The tests were coded with the help of a LLM 
 mod tests {
     use super::*;
     use crate::evaluation::classical::ClassicalEval;
@@ -627,13 +628,13 @@ mod tests {
     // Test 2: Matt detection in 1 (Scholar's Mate Setup)
     #[test]
     fn test_finds_mate_in_one() {
-        // Position: White#s turn can mate with Qf7#
+        // Position: White's turn can mate 
         let fen = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
         let mut pos = Position::from_fen(fen).unwrap();
         let eval = ClassicalEval::new();
         let mut searcher = Searcher::new(eval);
 
-        // Für Schwarz - sollte Matt-Score erkennen
+        // for black should detect MATE Score
         let limits = SearchLimits {
             max_depth: 2,
             max_nodes: None,
@@ -837,6 +838,7 @@ mod tests {
     }
 
     //test 12
+    
     #[test]
     fn test_detects_checkmate() {
         let fen = "6k1/5ppp/8/8/8/8/5PPP/4r1K1 w - - 0 1";
@@ -878,29 +880,30 @@ mod tests {
         }
     }
 
+    //coded without LLM
     #[test]
     fn test_tt_does_not_change_result_fixed_depth() {
-    use crate::search::tt::TranspositionTable;
+        use crate::search::tt::TranspositionTable;
 
-    let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    let mut pos_a = Position::from_fen(fen).unwrap();
-    let mut pos_b = Position::from_fen(fen).unwrap();
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let mut pos_a = Position::from_fen(fen).unwrap();
+        let mut pos_b = Position::from_fen(fen).unwrap();
 
-    let mut s_no_tt = Searcher::new(ClassicalEval::new());
-    s_no_tt.tt = TranspositionTable::disabled();
+        let mut s_no_tt = Searcher::new(ClassicalEval::new());
+        s_no_tt.tt = TranspositionTable::disabled();
 
-    let mut s_tt = Searcher::new(ClassicalEval::new());
-    s_tt.tt = TranspositionTable::new_mb(8);
+        let mut s_tt = Searcher::new(ClassicalEval::new());
+        s_tt.tt = TranspositionTable::new_mb(8);
 
-    let limits = SearchLimits { max_depth: 4, max_nodes: None, max_time_ms: None };
+        let limits = SearchLimits { max_depth: 4, max_nodes: None, max_time_ms: None };
 
-    let r1 = s_no_tt.search(&mut pos_a, limits);
-    let r2 = s_tt.search(&mut pos_b, limits);
+        let r1 = s_no_tt.search(&mut pos_a, limits);
+        let r2 = s_tt.search(&mut pos_b, limits);
 
-    assert_eq!(r1.best_move, r2.best_move);
-    assert_eq!(r1.score_cp, r2.score_cp);
-    assert_eq!(r1.depth, r2.depth);
-}
+        assert_eq!(r1.best_move, r2.best_move);
+        assert_eq!(r1.score_cp, r2.score_cp);
+        assert_eq!(r1.depth, r2.depth);
+    }
 }
 
 #[cfg(test)]
