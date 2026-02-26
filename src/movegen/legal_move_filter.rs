@@ -2,6 +2,7 @@ use crate::movegen::Move;
 use crate::movegen::attack::is_in_check;
 use crate::position::Position;
 
+//gets all the legal moves from the pseudo legal move list
 pub fn filter_legal_moves(position: &Position, moves: &[Move]) -> Vec<Move> {
     let mut legal_moves = Vec::new();
 
