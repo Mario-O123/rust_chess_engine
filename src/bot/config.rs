@@ -7,6 +7,7 @@ pub struct BotConfig {
     pub movetime_ms: u64,
 }
 
+//configuration to be able to connect to Lichess with vars set
 impl BotConfig {
     pub fn from_env() -> Result<Self> {
         dotenv::dotenv().ok();
