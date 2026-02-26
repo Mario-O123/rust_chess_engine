@@ -244,11 +244,10 @@ impl Position {
     pub fn find_pieces(&self, color: Color, kind: PieceKind) -> Vec<Square> {
         let mut pieces_found: Vec<Square> = Vec::new();
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece
-                && piece.color == color
-                && piece.kind == kind
-            {
-                pieces_found.push(Square::new(i as u8))
+            if let Cell::Piece(piece) = maybe_piece {
+                if piece.color == color && piece.kind == kind {
+                    pieces_found.push(Square::new(i as u8));
+                }
             }
         }
         pieces_found
@@ -256,11 +255,10 @@ impl Position {
 
     pub fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece
-                && piece.color == color
-                && piece.kind == kind
-            {
-                return Some(Square::new(i as u8));
+            if let Cell::Piece(piece) = maybe_piece {
+                if piece.color == color && piece.kind == kind {
+                    return Some(Square::new(i as u8));
+                }
             }
         }
         None
