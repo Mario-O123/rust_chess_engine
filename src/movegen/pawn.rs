@@ -178,7 +178,6 @@ pub fn en_passant_moves(
             }
         }
     }
-
 }
 
 fn gen_all_promotion_pieces(square: usize, moves: &mut Vec<Move>, offset: i32) {
@@ -203,6 +202,7 @@ fn gen_all_promotion_pieces(square: usize, moves: &mut Vec<Move>, offset: i32) {
         PromotionPiece::Queen,
     ));
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -460,11 +460,17 @@ impl Position {
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
                         //fallback prohibits a half turn in release build
-                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                        Piece {
+                            color: moving_piece.color,
+                            kind: PieceKind::Rook,
+                        }
                     }
                 };
 
-                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+                debug_assert!(
+                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
+                    "castling: wrong rook on rook_from"
+                );
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
@@ -480,11 +486,17 @@ impl Position {
                     Cell::Piece(p) => p,
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
-                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                        Piece {
+                            color: moving_piece.color,
+                            kind: PieceKind::Rook,
+                        }
                     }
                 };
 
-                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+                debug_assert!(
+                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
+                    "castling: wrong rook on rook_from"
+                );
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
