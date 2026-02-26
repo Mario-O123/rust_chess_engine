@@ -37,7 +37,7 @@ impl<B: Backend> MLP<B> {
     //the activation function for the hidden layer
     fn sc_relu(x: Tensor<B, 2>) -> Tensor<B, 2> {
         let clipped = x.clamp(0.0, 1.0);
-        return clipped.sqrt();
+        return clipped.powf(2.0);
     }
     //use only 2 dimensional vectors for mlp logic
     //here we do the forward function of our mlp where we do linear forwards and then our activation function to calculate a score
