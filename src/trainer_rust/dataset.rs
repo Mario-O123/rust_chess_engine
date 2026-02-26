@@ -149,14 +149,15 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
         } else {
             //if there is no cp in the pvs then there has to be a mate detected in which case we give it a more extreme evaluation
             //get mate labels as 1.5 or -1.5 so its outside the normal -1.0 - 1.0 range from tanh
+            let scale = 600.0;
+            let mate = best_pv.get("mate").and_then(Value::as_i64).unwrap() as f32;
 
-            let mate = best_pv.get("mate").and_then(Value::as_i64).unwrap() as i32;
-
-            if mate > 0 {
-                label = 1.5;
+            let mate_label = if mate > 0.0 {
+                10_000.0 - (mate * 10.0)
             } else {
-                label = -1.5;
-            }
+                 -10_000.0 - (mate * 10.0)
+            };
+            label = (mate_label / scale).tanh();
         }
         //decode the fen into our neuron format then pass it into the vector of positions and also push the eal into the eval vec
         positions_x.push(decode_data(fen));

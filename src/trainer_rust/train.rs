@@ -5,7 +5,7 @@
 //then we need to iterate over the epochs and do the optmizer reset run the model calculate the loss and gradients then update with the optimizer in the loop for the batch
 //then after give back the loss for each epoch
 
-use crate::trainer_rust::config::{MODEL_PATH_2, OPTIMIZER_SAVE_PATH_2};
+use crate::trainer_rust::config::{MODEL_PATH_4, OPTIMIZER_SAVE_PATH_4};
 use crate::trainer_rust::dataset::{ChessBatch, ChessBatcher, ChessDataset};
 use crate::nn_model::mlp_structure::MLP;
 use burn::data::dataloader::{DataLoader, DataLoaderBuilder};
@@ -37,14 +37,14 @@ pub fn train<B: AutodiffBackend>(
     let optimizer_config = AdamConfig::new();
     let mut optimizer = optimizer_config.init();
     //load optimizer state if it exists
-    if Path::new(&OPTIMIZER_SAVE_PATH_2).exists() {
+    if Path::new(&OPTIMIZER_SAVE_PATH_4).exists() {
         let device = device; // get backend device
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
 
         //load the  tje optimizer state in the record
         let optimizer_record = recorder
             .load::<<OptimizerAdaptor<Adam, MLP<B>, B> as Optimizer<MLP<B>, B>>::Record>(
-                OPTIMIZER_SAVE_PATH_2.into(),
+                OPTIMIZER_SAVE_PATH_4.into(),
                 device,
             )
             .expect("Failed to load optimizer record");
@@ -57,7 +57,7 @@ pub fn train<B: AutodiffBackend>(
 
     //initialie loss function and define learning rate of optimizer
     let loss_function = MseLoss::new();
-    let mut lr = 2e-6;
+    let mut lr = 1e-5;
 
     //loop over epochs (wont go 20 epochs but str c when overfitting)
     for epoch in 0..20 {
@@ -139,12 +139,12 @@ pub fn train<B: AutodiffBackend>(
                 PrettyJsonFileRecorder::new();
 
             best_model
-                .save_file(MODEL_PATH_2, &recorder)
+                .save_file(MODEL_PATH_4, &recorder)
                 .expect("Error in saving model");
 
             let optimizer_record = optimizer.to_record();
             recorder
-                .record(optimizer_record, OPTIMIZER_SAVE_PATH_2.into()) // Path can be whatever you want
+                .record(optimizer_record, OPTIMIZER_SAVE_PATH_4.into()) // Path can be whatever you want
                 .expect("Failed to save optimizer");
             println!("Still Fine!");
         }

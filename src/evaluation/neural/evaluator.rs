@@ -5,8 +5,8 @@ use crate::evaluation::neural::feature::decode_pos_nn;
 use crate::position::Position;
 use crate::nn_model::mlp_structure::MLP;
 use burn::module::Module;
-use burn::record::{FullPrecisionSettings, PrettyJsonFileRecorder, Recorder};
-use std::path::PathBuf;
+use burn::record::FullPrecisionSettings;
+use burn::record::PrettyJsonFileRecorder;
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 
@@ -22,10 +22,7 @@ impl<B: Backend> NeuralEval<B> {
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);
-        
-        let record = recorder.load(PathBuf::from(model_path), &device)?;
-
-        model = model.load_record(record);
+        model = model.load_file(model_path, &recorder, &device).unwrap();
 
         Ok(Self { model, device })
     }
@@ -64,7 +61,7 @@ mod tests {
 
     #[test]
     fn nn_eval_starting_pos() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -84,7 +81,7 @@ mod tests {
     //161 -> 173 -> 235 -> 185 -> 192 -> 227 -> 233 -> 219 -> 206 -> 253 -> 334 -> 254
     #[test]
     fn eval_random_pos() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -104,7 +101,7 @@ mod tests {
     //716 -> 30000 -> 30000 -> 30000 -> 30000 -> 30000
     #[test]
     fn eval_random_pos_2() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -122,7 +119,7 @@ mod tests {
     //278
     #[test]
     fn eval_random_pos_3() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -140,7 +137,7 @@ mod tests {
     //rnb1k2r/pp3pbp/1N1ppnp1/2pP4/4P3/3Q1N2/PPP2PPP/R1B1KB1R b KQkq - 0 8
     #[test]
     fn eval_random_pos_4() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 

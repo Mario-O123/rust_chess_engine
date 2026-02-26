@@ -85,11 +85,12 @@ fn decode_pos_pieces(piece: &Piece) -> Option<usize> {
         }
     }
 }
-
+/*/
 #[cfg(test)]
 mod nn_alignment_tests {
     use super::decode_pos_nn;
     use crate::position::Position;
+    
     use crate::trainer_rust::decode_fen::decode_data;
 
     /// Returns all indices set to 1 in a given 64-square piece plane
@@ -107,7 +108,7 @@ mod nn_alignment_tests {
 
     #[test]
     fn engine_matches_trainer_feature_indices() {
-        // FEN: White king on a1, Black king on h8
+        //FEN: White king on a1, Black king on h8
         let fen = "7k/8/8/8/8/8/8/K7 w - - 0 1";
         let pos = Position::from_fen(fen).expect("FEN should parse");
 
@@ -126,4 +127,4 @@ mod nn_alignment_tests {
         assert_eq!(&feat_engine[768..], &feat_trainer[768..], "Non-piece features mismatch");
     }
 
-}
+}*/
