@@ -1,4 +1,6 @@
 //here we call the functions of the other files in the directory
+//basically do the loading and training and define train_size and size of the valid dataset
+
 use burn::backend::{Autodiff, NdArray}; //both wgpu and ndarray loaded trained on both will remove in final version after done with training
 use burn::module::Module;
 use std::sync::Arc;

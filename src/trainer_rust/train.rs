@@ -1,9 +1,6 @@
-//ok so here we define the training loop
+//here we define the training loop
 
-//we need to load the optimizer and LossFunction
-
-//then we need to iterate over the epochs and do the optmizer reset run the model calculate the loss and gradients then update with the optimizer in the loop for the batch
-//then after give back the loss for each epoch
+//we train our mlp based on the data sample produced by dataset.rs
 
 use crate::trainer_rust::config::{MODEL_PATH_4, OPTIMIZER_SAVE_PATH_4};
 use crate::trainer_rust::dataset::{ChessBatch, ChessBatcher, ChessDataset};
@@ -16,7 +13,7 @@ use burn::nn::loss::Reduction;
 use burn::optim::Optimizer;
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::{Adam, AdamConfig, GradientsParams};
-use burn::prelude::ToElement;
+use burn::tensor::cast::ToElement;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
 use burn::record::Recorder;
@@ -32,11 +29,15 @@ pub fn train<B: AutodiffBackend>(
     device: &B::Device,
 ) -> MLP<B> {
     //initialize variable for later checking if val loss decreased
+    //this variable will get changed, the 1000 is just to always be above the first val loss so it always gets changed
+    //for optimal training this gets changed to the lowest val loss of the last training run before starting a new one
     let mut best_val_loss: f32 = 1000.0;
     //initialize optimizer
     let optimizer_config = AdamConfig::new();
     let mut optimizer = optimizer_config.init();
+    
     //load optimizer state if it exists
+    //had llm suggest recording the optimizer state as addition to the model
     if Path::new(&OPTIMIZER_SAVE_PATH_4).exists() {
         let device = device; // get backend device
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
@@ -55,7 +56,7 @@ pub fn train<B: AutodiffBackend>(
         println!("Loaded optimizer from checkpoint.");
     }
 
-    //initialie loss function and define learning rate of optimizer
+    //initialie loss function and define learning rate of optimizer (learning rate will be chcontinously lowered during the training run to prevent overfitting)
     let loss_function = MseLoss::new();
     let mut lr = 1e-5;
 
@@ -72,7 +73,7 @@ pub fn train<B: AutodiffBackend>(
 
         //do the forward pass and loss , optimizer for each minibatch
         for batch in loader.iter() {
-            //forward -> loss function -> get gradients -> optmizer
+            //forward -> loss function -> get gradients -> run optmizer
             let prediction = model.forward(batch.positions);
             let evals = batch.evals.unsqueeze_dim(1);
             let loss_tensor = loss_function.forward(prediction, evals, Reduction::Mean);
@@ -95,7 +96,7 @@ pub fn train<B: AutodiffBackend>(
             epoch_loss += loss_value;
         }
 
-        //here we do the valid run where we go over the dataset which wasnt trained on and see how good the model perfomrs
+        //here we do the valid run where we go over the dataset which wasnt trained on and see how good the model perfomrms
         //same as the train run but no optimizer just a forward pass and calculate the loss
         let valid_model = model.valid();
         let mut valid_loss = 0.0;
@@ -108,10 +109,11 @@ pub fn train<B: AutodiffBackend>(
             valid_batches += 1;
         }
 
+        //this is just to keep track of the training and see if the model overfits plateaus or other issues arise so we can stop the training
         //calculate the loss and translate it into cp by scaling back and/or using atanh though that could be worse
         let average_epoch_loss = epoch_loss / batch_num as f32;
         let average_valid_loss = valid_loss / valid_batches as f32;
-        //let real_loss = average_epoch_loss.sqrt();
+        
         println!(
             "Train - Epoch: {}     Loss: {}    cp: {}",
             epoch,
@@ -131,7 +133,7 @@ pub fn train<B: AutodiffBackend>(
             lr = lr * 0.5;
         }
 
-        //save a model if it preforms better doesnt save overfitted models
+        //save a model if it preforms better doesnt save overfitting models(where valid loss is increasing )
         if average_valid_loss < best_val_loss {
             best_val_loss = average_valid_loss;
             let best_model = model.clone(); // keep the best

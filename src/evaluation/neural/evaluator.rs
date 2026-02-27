@@ -1,4 +1,5 @@
-//here a board is given a score so calls fature.rs then the mlp structure from the trainer
+//here is the final forward pass where we give a position a score by having it run through a forward pass of our mlp with the trained weights from our trainer
+//to encode the Positions struct from our position.rs into the same format used to train we call feature.rs
 
 use super::super::Evaluator;
 use crate::evaluation::neural::feature::decode_pos_nn;
@@ -26,7 +27,7 @@ impl<B: Backend> NeuralEval<B> {
 
         Ok(Self { model, device })
     }
-    //deocdeing the Position struct into our neuron format
+    //encodeing the Position struct into our neuron format
     fn encode(&self, position: &Position) -> Tensor<B, 2> {
         let nn_input = decode_pos_nn(position);
         let nn_input_tensor = Tensor::<B, 1>::from_floats(&nn_input[..], &self.device);
@@ -39,7 +40,9 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
     //the pass into our mlp which returns a score
     fn evaluate(&mut self, position: &Position) -> i32 {
         let input = self.encode(position);
+        
         let prediction = self.model.forward(input);
+        
         let score: f32 = prediction.to_data().to_vec::<f32>().unwrap()[0];
 
         if score >= 1.2 {

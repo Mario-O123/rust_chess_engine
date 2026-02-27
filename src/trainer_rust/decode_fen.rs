@@ -1,4 +1,5 @@
 //here we will write the function which will decode the fen data from the training data into the informations we want
+//this is only called by dataset.rs to get the data into a mlp usable format before loading it into the ChessDataset we give the mlp
 
 pub fn decode_data(fen: &str) -> [f32; 781] {
     //split the fen into the features we want to decode (board , movecolor , castling rights , enpassant square)
@@ -7,7 +8,7 @@ pub fn decode_data(fen: &str) -> [f32; 781] {
     let move_color = parts[1];
     let castle_rights = parts[2];
     let en_passant_sqr = parts[3];
-    let mut features = [0.0f32; 12 * 64 + 1 + 4 + 8];
+    let mut features = [0.0f32; 12 * 64 + 1 + 4 + 8]; //64 neurons for each square for each piece + color to move + castle rights + en passant square
 
     let mut square: usize = 0;
     //decode the fen by first going over the board and if a piece is on a index we put a 1 on the index in the 64 vec thats designated for the piece (12 total for every piece of both colors (2*6) so 12*64 neurons)
@@ -40,6 +41,8 @@ pub fn decode_data(fen: &str) -> [f32; 781] {
             }
         }
     }
+
+    //used llm here to generate the en passant decoder as using just 8 neurons , because previous own version used more neruons which gave en passant square to much influence and weight to the data
     //then another 8 neurons for the file which has the ep square (the rank is implicated because ep can only be done after a pawn does a double move so we dont need to add neurons for that)
     if en_passant_sqr != "-" {
         let file = (en_passant_sqr.as_bytes()[0] - b'a') as usize;
@@ -47,7 +50,7 @@ pub fn decode_data(fen: &str) -> [f32; 781] {
     }
     return features;
 }
-//here we give each piece the index of ots 64 vec inside the total 768 neuon vec for example white pawn (P) has the first 64 neurons and white knight(N) the second 64 neurons
+//here we give each piece the index of its 64 vec inside the total 768 neuon vec for example white pawn (P) has the first 64 neurons and white knight(N) the second 64 neurons, and so on
 fn decode_pieces(char: char) -> Option<usize> {
     match char {
         'P' => Some(0),
