@@ -1,4 +1,7 @@
-// All Values in Centipawns
+//! Piece-Square Tables (PST) used by the classical evaluator.
+//! All values are in centipawns.
+//! Index 0 = A1, Index 63 = H8.
+//! Black pieces use mirrored PSTs.
 
 pub(crate) const PST_PAWN: [i32; 64] = [
     0, 0, 0, 0, 0, 0, 0, 0, // Rank 1
