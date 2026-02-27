@@ -1,8 +1,66 @@
+# Playing on Lichess
+This section covers the engine connection via lichess. 
+Here is an step-by-step instruction to connect with lichess.org:
+
+- Create a new lichess account on lichess.org
+
+- Create a new API Key (Preferences -> API access tokens)
+
+- Change the lichess account to a Bot account. This is possible via terminal with
+
+curl -X POST https://lichess.org/api/bot/account/upgrade -H "Authorization: Bearer lip_YOUR_TOKEN"
+
+- Create a .env File on the same level as Cargo.toml. The .env needs to include the liches token, the path to the built engine
+and the engine movetime in ms. e.g.:
+
+LICHESS_TOKEN=lip_YOUR_TOKEN
+ENGINE_PATH=./target/release/engine
+MOVETIME_MS=2000
+
+You can create the .env also via terminal with
+cat > .env <<'EOF'
+LICHESS_TOKEN=lip_YOUR_TOKEN
+ENGINE_PATH=./target/release/engine
+MOVETIME_MS=2000
+EOF
+
+- Now you can start the engine with 
+cargo run --release --bin bot 
+for classical eval mode
+or with 
+cargo run --release --features neural-eval --bin bot 
+for neural eval mode.
+
+If everything works proberly you should see in terminal
+Starting Lichess Bot...
+Configuration:
+Engine path: ./target/release/engine
+Move time: 2000ms
+→ UCI: uci
+← UCI: id name RustEngine 1.0
+← UCI: id author Mario Orsolic, Emil Sitka, Julien Kriebel, Noah Schuller
+← UCI: uciok
+→ UCI: isready
+← UCI: readyok
+UCI Engine initialized
+Logged in as: "YOUR_LICHESS_ACCOUNT_NAME"
+Bot running, waiting for games...
+
+- Now you can go to your created lichess account. With Play -> Challenge a friend you can callenge another lichess account for a match.
+
+----------------------------------
+# Classical vs Neural Eval
+For testing we played a sequenz of games on lichess. One bot with classical, one with neural eval. The sample size is small,
+but already the neural eval is ahead in a direct comparison. It was trained with millions of evaluated chess positions, so it is expected to have a better positional understand than the more simple classical eval, which is based mainly on piece values and slightly on piece positioning on the board.
+![Bot with classical eval against bot with neural eval](images/classical/classical_vs_neural_eval.png)
+
+# Estimated elo
+Our engine was able to beat quit frequently the Stockfish engine on lichess with strength 6 out of 8, but loses always against strength 7 and 8. With a rough estimate our engine has a strength of 2000-2200 elo, which equals a strong club player.
 
 ----------------------------------
 This section features the outlined MVP version of the project, where the user can play against our engine within the terminal
 Both binaries apply the same game logic via the shared "terminal_common", however we use different position-evaluators.
-The testing of the evaluators can be done as a comparison via liches
+The testing of the evaluators can be done as a comparison via lichess
 
 Listed commands to run the MVP (classical evaluator) in the terminal:
 
