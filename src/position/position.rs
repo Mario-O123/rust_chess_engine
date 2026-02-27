@@ -117,8 +117,6 @@ pub struct Zobrist {
     pub zobrist_enpassant: [u64; BOARD_LENGTH],
 }
 
-// Zobrist is a hash value used to uniquely identify board positions
-// Same Seed generates same random u64 Numbers everytime function is called
 impl Zobrist {
     pub fn init_zobrist() -> Self {
         const SEED: u64 = 42;
