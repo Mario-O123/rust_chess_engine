@@ -65,6 +65,9 @@ impl Game {
         self.gamestatus = self.compute_status();
     }
 
+    ///undoes the last move if available.
+    ///pops one undo record from [`GameStatus`], restores the previous [`Position`],
+    ///and recomputes the current [`GameStatus`], returns false of there was no move to undo
     pub fn undo(&mut self) -> bool {
         let Some(undo) = self.gamestate.pop_undo() else {
             return false;
