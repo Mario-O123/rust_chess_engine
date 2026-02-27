@@ -1,12 +1,24 @@
+//! Classical evaluation
+//!
+//! This evaluator scores a position in centipawns using:
+//! - Material values
+//! - Piece-Square Tables (PST)
+//! - Bishop pair bonus
+//! - Tempo bonus (side to move)
+//!
+//! Positive scores favor White.
+//! Negative scores favor Black.
+
 mod pst;
 use super::Evaluator;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use crate::position::{Cell, Color, Piece, PieceKind, Position};
 use pst::*;
 
+/// A classical evaluation function.
 pub struct ClassicalEval;
 
-// Values in Centipawns
+/// Material values in centipawns (100 = 1 pawn).
 const PAWN_VALUE: i32 = 100;
 const KNIGHT_VALUE: i32 = 320;
 const BISHOP_VALUE: i32 = 330;
@@ -22,6 +34,7 @@ impl ClassicalEval {
         Self
     }
 
+    /// Returns the material value of a piece in centipawns.
     fn get_piece_value(piece: &Piece) -> i32 {
         match piece.kind {
             PieceKind::Pawn => PAWN_VALUE,
@@ -33,12 +46,17 @@ impl ClassicalEval {
         }
     }
 
+    /// Mirrors a 64 square board.
+    /// Used to apply white-oriented PST tables to black pieces.
     fn mirror_sq64(sq64: usize) -> usize {
         let file = sq64 % 8;
         let rank = sq64 / 8;
         (7 - rank) * 8 + file
     }
 
+    /// Calculates the current gamephase:
+    /// 24 -> Earlygame, 0 -> Endgame.
+    /// Used for transition of King PSTs.
     fn phase_calculator(piece: &Piece) -> i32 {
         match piece.kind {
             PieceKind::Knight => 1,
@@ -49,10 +67,12 @@ impl ClassicalEval {
         }
     }
 
+    /// Blends aerlygame and endgame king PST based on game phase.
     fn king_pst_blend(sq64: usize, phase: i32) -> i32 {
         (PST_KING_MG[sq64] * phase + PST_KING_EG[sq64] * (PHASE_MAX - phase)) / PHASE_MAX
     }
 
+    /// Returns PST bonus for a piece.
     fn get_square_value(sq: usize, piece: &Piece) -> i32 {
         // check if sq64_i8 is valid
         let sq64_i8 = SQUARE120_TO_SQUARE64[sq];
@@ -76,6 +96,17 @@ impl ClassicalEval {
     }
 }
 
+ /// Evaluates a position in centipawns.
+    ///
+    /// Scoring rules:
+    /// - Material + PST values are accumulated.
+    /// - White contributions are added, Black contributions are subtracted.
+    /// - Bishop pair bonus applied.
+    /// - King PST blended based on remaining material.
+    /// - Small tempo bonus for side to move.
+    ///
+    /// Positive score: White is better.
+    /// Negative score: Black is better.
 impl Evaluator for ClassicalEval {
     fn evaluate(&mut self, pos: &Position) -> i32 {
         let mut score = 0;
@@ -160,6 +191,7 @@ impl Evaluator for ClassicalEval {
 mod tests {
     use super::*;
 
+    // defines a square
     fn sq(file: i32, rank: i32) -> usize {
         (21 + file + rank * 10) as usize
     }
@@ -177,7 +209,6 @@ mod tests {
         assert_eq!(class_eval.evaluate(&pos), 10);
     }
 
-    // Should be 10 because of Bonus for Players Turn
     #[test]
     fn eval_winning_position_black() {
         let mut pos = Position::empty();
