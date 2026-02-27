@@ -1,3 +1,8 @@
+//! Board representation, position state, zobrist hashing and make move logic
+//! Uses a 10x12 "mailbox120" board 
+//! Squares are encoded as indices `0..=119`, where the playable 8x8 area starts at `A1 = 21`.
+
+
 use super::state::Undo;
 pub use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
@@ -6,9 +11,13 @@ use once_cell::sync::Lazy;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+/// Number of playable squares on a normal chess board (8x8).
 const BOARD64: usize = 64;
+
+/// Side length of the playable board (files/ranks).
 const BOARD_LENGTH: usize = 8;
 
+// Piece Color
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     White,
@@ -31,7 +40,8 @@ impl Color {
     }
 }
 
-// Necessary because of 120 board representation
+/// A mailbox120 board cell.
+/// Offboard marks the squares around the playable 8x8 area.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Cell {
     Piece(Piece),
@@ -39,6 +49,7 @@ pub enum Cell {
     Empty,
 }
 
+// Types of chess pieces. Without color.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PieceKind {
     Pawn,
@@ -62,6 +73,7 @@ impl PieceKind {
     }
 }
 
+/// Colored chess piece.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Piece {
     pub color: Color,
@@ -74,6 +86,7 @@ impl Piece {
     }
 }
 
+/// Squares on the 120 board (0..119).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Square(u8);
 
@@ -92,7 +105,10 @@ impl Square {
     }
 }
 
-// zobrist_values: [[[Squares]; Piecekinds]; Colors]
+/// Zobrist is a hash value used to uniquely identify board positions.
+/// Initializes based on a fixed seed, so values are always the same.
+/// zobrist_values: [[[Squares]; Piecekinds]; Colors]
+/// plus side-to-move, castling rights, and en-passant.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Zobrist {
     pub zobrist_values: [[[u64; BOARD64]; 6]; 2],
@@ -101,8 +117,6 @@ pub struct Zobrist {
     pub zobrist_enpassant: [u64; BOARD_LENGTH],
 }
 
-// Zobrist is a hash value used to uniquely identify board positions
-// Same Seed generates same random u64 Numbers everytime function is called
 impl Zobrist {
     pub fn init_zobrist() -> Self {
         const SEED: u64 = 42;
@@ -138,11 +152,12 @@ impl Zobrist {
     }
 }
 
-// Blocks Memory for Zobrist. init_zobrist is called, when needed
+/// Global zobrist key. Blocks Memory for Zobrist; init_zobrist is called, when needed.
 pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(Zobrist::init_zobrist);
 
-// castling_rights uses 4 bits: White 0-0 (0b0001), White 0-0-0 (0b0010),
-// Black 0-0 (0b0100), Black 0-0-0 (0b1000)
+/// castling_rights with bitmasks: 
+/// White 0-0 (0b0001), White 0-0-0 (0b0010),
+/// Black 0-0 (0b0100), Black 0-0-0 (0b1000)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
     pub board: [Cell; BOARD120],
@@ -156,6 +171,7 @@ pub struct Position {
     pub piece_counter: [u8; 12],
 }
 
+/// Complete game state needed for move generation and evaluation.
 impl Position {
     pub fn empty() -> Self {
         Self {
@@ -171,6 +187,7 @@ impl Position {
         }
     }
 
+    /// Creates the standard chess starting position, including zobrist/king squares/counters.
     pub fn starting_position() -> Self {
         let mut pos = Self::empty();
         pos.board = Self::init_board();
@@ -182,6 +199,7 @@ impl Position {
         pos
     }
 
+    /// Initializes empty mailbox120 board.
     fn init_empty_board() -> [Cell; BOARD120] {
         let mut board = [Cell::Offboard; BOARD120];
         const A1: usize = 21;
@@ -196,7 +214,7 @@ impl Position {
         board
     }
 
-    // Sets up a board with all pieces in starting position
+    /// Initializes a mailbox120 board with all chess pieces in starting position.
     fn init_board() -> [Cell; BOARD120] {
         let mut board = Self::init_empty_board();
 
@@ -234,6 +252,7 @@ impl Position {
         board
     }
 
+    /// Looks at a square and returns the piece on that square.
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
         match self.board[square.as_usize()] {
             Cell::Piece(piece) => Some(piece),
@@ -242,8 +261,7 @@ impl Position {
         }
     }
 
-    // returns a vec with squares of all pieces with same color and Piecekind
-    // on the board
+    /// Returns a vec with squares of all pieces with same color and Piecekind on the board
     pub fn find_pieces(&self, color: Color, kind: PieceKind) -> Vec<Square> {
         let mut pieces_found: Vec<Square> = Vec::new();
         for (i, maybe_piece) in self.board.iter().enumerate() {
@@ -257,6 +275,7 @@ impl Position {
         pieces_found
     }
 
+    /// Returns the first square with a piece of the given color.
     pub fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
         for (i, maybe_piece) in self.board.iter().enumerate() {
             if let Cell::Piece(piece) = maybe_piece
@@ -269,6 +288,7 @@ impl Position {
         None
     }
 
+    /// Finds and returns the kings on the board.
     pub fn compute_king_sq(&self) -> [u8; 2] {
         // checks if there is exactly 1 black and 1 white king on the board
         debug_assert!(self.find_pieces(Color::White, PieceKind::King).len() == 1);
@@ -285,6 +305,7 @@ impl Position {
         [white.get(), black.get()]
     }
 
+    /// /// Counts pieces on the board.
     pub fn compute_piece_counter(&self) -> [u8; 12] {
         let mut all_pieces: [u8; 12] = [0; 12];
 
@@ -300,8 +321,8 @@ impl Position {
         all_pieces
     }
 
-    // computes a hash-value for every Piece on the Board, Player to Move, Castling rights
-    // and en-passant-row. So every Boardstate has a unique hash-value
+    /// Computes a hash-value for every Piece on the Board, Player to Move, Castling rights
+    /// and en-passant-row. So every Boardstate has a unique hash-value.
     pub fn compute_zobrist(&self) -> u64 {
         let mut zobrist: u64 = 0;
 
