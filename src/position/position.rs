@@ -31,6 +31,7 @@ impl Color {
     }
 }
 
+// Necessary because of 120 board representation
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Cell {
     Piece(Piece),
@@ -100,8 +101,9 @@ pub struct Zobrist {
     pub zobrist_enpassant: [u64; BOARD_LENGTH],
 }
 
+// Zobrist is a hash value used to uniquely identify board positions
+// Same Seed generates same random u64 Numbers everytime function is called
 impl Zobrist {
-    // Same Seed generates same random u64 Numbers everytime function is called
     pub fn init_zobrist() -> Self {
         const SEED: u64 = 42;
         let mut rng = StdRng::seed_from_u64(SEED);
@@ -194,6 +196,7 @@ impl Position {
         board
     }
 
+    // Sets up a board with all pieces in starting position
     fn init_board() -> [Cell; BOARD120] {
         let mut board = Self::init_empty_board();
 
