@@ -1,7 +1,10 @@
-
-//This file was coded with the help of a LLM
-
-
+//! Lichess bot integration.
+//!
+//! - Connects to Lichess event stream (`/api/stream/event`)
+//! - Accepts challenges and streams games (`/api/bot/game/stream/{id}`)
+//! - Delegates move calculation to a UCI engine (`UciEngineHandle`)
+//! - Lichess streams are NDJSON (one JSON object per line).
+//! This file was coded with the help of a LLM
 
 
 use super::{BotConfig, UciEngineHandle};
@@ -11,8 +14,11 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
 
+/// FEN for standart chess starting position
 pub const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+/// event recieived from Lichess event Stream
+/// NDjSON stream, each line is one Event
 #[derive(Debug, Deserialize)]
 struct Event {
     #[serde(rename = "type")]
@@ -21,16 +27,19 @@ struct Event {
     challenge: Option<ChallengeInfo>,
 }
 
+/// Minimal game reference sent inside a gameStart event
 #[derive(Debug, Deserialize)]
 struct GameInfo {
     id: String,
 }
 
+/// Minimal challenge reference sent inside a `"challenge"` event
 #[derive(Debug, Deserialize)]
 struct ChallengeInfo {
     id: String,
 }
 
+/// Full game snapshot sent as the first line of a game stream 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct GameFull {
@@ -55,12 +64,15 @@ struct User {
     id: String,
 }
 
+// returns the lichess user id for a player 
 fn player_id(p: &Player) -> Option<&str> {
     p.id.as_deref()
         .or_else(|| p.user.as_ref().map(|u| u.id.as_str()))
 }
 
-#[warn(dead_code)]
+/// Game update from the game stream
+/// Contains the current move list in UCI notation 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct GameState {
     #[serde(rename = "type", default)]
@@ -73,6 +85,7 @@ struct GameState {
     status: String,
 }
 
+/// Runs a Lichess bot account that accepts challenges and plays games using a UCI engine
 pub struct LichessBot {
     client: Client,
     config: BotConfig,
@@ -80,6 +93,7 @@ pub struct LichessBot {
     bot_id: String,
 }
 
+ /// Creates a new bot instance and authenticates against Lichess
 impl LichessBot {
     pub async fn new(config: BotConfig) -> Result<Self> {
         // Create client with User-Agent (required by Lichess)
@@ -119,6 +133,7 @@ impl LichessBot {
         })
     }
 
+    /// Main loop: listens to the Lichess event stream and reacts to events.
     pub async fn run(&mut self) -> Result<()> {
         println!("Bot running, waiting for games...");
 
@@ -161,7 +176,7 @@ impl LichessBot {
                             }
                         }
                         _ => {
-                            println!("📨 Event: {}", event.event_type);
+                            println!("Event: {}", event.event_type);
                         }
                     }
                 }
@@ -171,6 +186,7 @@ impl LichessBot {
         Ok(())
     }
 
+      /// Accepts a challenge by id
     async fn accept_challenge(&self, challenge_id: &str) -> Result<()> {
         let url = format!("https://lichess.org/api/challenge/{}/accept", challenge_id);
 
@@ -193,6 +209,8 @@ impl LichessBot {
         Ok(())
     }
 
+    /// Plays a single game by consuming the Lichess game NDJSON stream.
+    /// We buffer chunks because JSON objects may be split across network frames.
     async fn play_game(&mut self, game_id: &str) -> Result<()> {
         let url = format!("https://lichess.org/api/bot/game/stream/{}", game_id);
 
@@ -317,6 +335,7 @@ impl LichessBot {
         Ok(())
     }
 
+    /// Applies a `GameState` update and makes a move if it's the bot's turn.
     async fn handle_state(
         &mut self,
         state: &GameState,
@@ -377,35 +396,26 @@ impl LichessBot {
         Ok(())
     }
 
+    /// Sends a move to Lichess in UCI notation
     async fn make_move(&self, game_id: &str, mv: &str) -> Result<()> {
-        let url = format!("https://lichess.org/api/bot/game/{}/move/{}", game_id, mv);
+    let url = format!("https://lichess.org/api/bot/game/{}/move/{}", game_id, mv);
 
-        let response = self
-            .client
-            .post(&url)
-            .header(
-                "Authorization",
-                format!("Bearer {}", self.config.lichess_token),
-            )
-            .send()
-            .await?;
+    let response = self
+        .client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", self.config.lichess_token))
+        .send()
+        .await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("game stream failed: {} {}", status, body));
-        }
-
-        if response.status().is_success() {
-            println!("Played: {}", mv);
-        } else {
-            let error = response.text().await?;
-            println!("Failed to play {}: {}", mv, error);
-            return Err(anyhow::anyhow!("Move failed: {}", error));
-        }
-
-        Ok(())
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(anyhow::anyhow!("move failed: {} {}", status, body));
     }
+
+    println!("Played: {}", mv);
+    Ok(())
+}
 }
 
 impl std::fmt::Debug for LichessBot {
