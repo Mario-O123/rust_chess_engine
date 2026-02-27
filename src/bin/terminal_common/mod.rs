@@ -311,7 +311,8 @@ impl<E: Evaluator> EngineCli<E> {
 pub(crate) fn run_repl<E: Evaluator>(eval_for_search: E, eval_view: E) {
     let  mut cli = EngineCli::new(eval_for_search, eval_view);
 
-    println!("terminal_promo — commands: help | eval | go [depth N|time MS|nodes N] | undo | undo2 | new | engine on/off | quit");
+    println!();
+    println!("terminal_proto — commands: help | eval | go [depth N|time MS|nodes N] | undo | undo2 | new | engine on/off | quit");
     loop {
         cli.print_position();
 
