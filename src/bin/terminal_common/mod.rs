@@ -213,10 +213,10 @@ impl<E: Evaluator> EngineCli<E> {
                 println!("  help");
                 println!("  quit/exit");
                 println!("  new                            (new game)");
-                println!("  undo                           (undo 1 ply");
-                println!("  undo2                          (undo 2 plies");
+                println!("  undo                           (undo 1 ply)");
+                println!("  undo2                          (undo 2 plies)");
                 println!("  eval                           (classical eval, from White perspective)");
-                println!("  go [depth N| time MS|noes N]   (engine plays one move noew)");
+                println!("  go [depth N| time MS| nodes N] (engine plays one move now)");
                 println!("  engine on/off                  (toggle auto-engine reply after your move)");
                 return false;
             }
