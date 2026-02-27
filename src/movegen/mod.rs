@@ -17,7 +17,7 @@ pub use pseudo_legal_movegen::{generate_pseudo_legal_moves, generate_pseudo_lega
 
 pub use attack::is_in_check;
 
-use crate::position::{self, Cell, Position};
+use crate::position::{Cell, Position};
 
 #[inline]
 fn is_capture(position: &Position, mv: Move) -> bool {

@@ -54,10 +54,10 @@ fn player_id(p: &Player) -> Option<&str> {
         .or_else(|| p.user.as_ref().map(|u| u.id.as_str()))
 }
 
-#[warn(dead_code)]
 #[derive(Debug, Deserialize)]
 struct GameState {
     #[serde(rename = "type", default)]
+    #[allow(dead_code)]
     event_type: Option<String>,
 
     #[serde(default)]

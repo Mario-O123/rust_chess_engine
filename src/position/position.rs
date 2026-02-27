@@ -446,7 +446,6 @@ impl Position {
                 }
             };
 
-            captured_piece = Some(captured_pawn);
             did_capture = true;
 
             //incremental zobrist + piece counter
