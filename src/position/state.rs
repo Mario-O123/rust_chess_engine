@@ -1,3 +1,8 @@
+//! game state snapshots and hinary helpers
+//! modules provides lightweight [`State`] snapshots of [`Position`] and [`GameState`]
+//! container that tracks position history plus an undo stack
+
+
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::movegen::Move;
 use crate::position::{Cell, Color, Piece, Position, Square};
@@ -18,6 +23,9 @@ pub struct State {
 }
 
 impl State {
+    ///creates a [`State`] snapshot from the given [`Position`]
+    ///used by [`GameState`] to store history entries efficiently
+    ///the snapshot is a plain data copy of the relevant fields
     #[inline]
     pub fn from_position(pos: &Position) -> Self {
         Self {
@@ -34,6 +42,8 @@ impl State {
     }
 }
 
+///stores game history and undo information
+/// 
 #[derive(Debug, Default)]
 pub struct GameState {
     pub history: Vec<State>,
@@ -42,29 +52,43 @@ pub struct GameState {
 }
 
 impl GameState {
+    /// Creates an empty [`GameState`]
     pub fn new() -> Self {
         Self::default()
     }
 
+    ///pushes a snapshot of `pos` onto the history list
+    ///this does not modify the undo stack
     //moved logic to fn from_position to use frequently
     pub fn save_history(&mut self, pos: &Position) {
         self.history.push(State::from_position(pos));
     }
 
-    //call one time at start, so history isn't empty
+    ///clears history and undo stack, then records the given position as the initial state
+    ///call this once at game start (so `history` is not empty)
     pub fn reset(&mut self, pos: &Position) {
         self.history.clear();
         self.undo_stack.clear();
         self.save_history(pos);
     }
 
-    //call after make_move_with_undo: Undo + new Position in the history
+    ///records the result of making a move:
+    ///- pushes `undo` onto the undo stack
+    ///- pushes a snapshot of the resulting position onto the history
+    ///intended to be called right after `make_move_with_undo`
     pub fn record_after_make(&mut self, undo: Undo, pos_after: &Position) {
         self.undo_stack.push(undo);
         self.save_history(pos_after);
     }
 
-    //expected: history contains at least the starting Position
+    ///pops one undo record and rewinds history by one step.
+    ///returns:
+    ///  Some(undo) if a move can be undone
+    ///  None       if there is no move to undo (only the initial state exists)
+    ///
+    /// # Note
+    /// this updates the stacks only. The caller must apply the returned [`Undo`]
+    /// (or otherwise restore the position) to actually revert the current position
     pub fn pop_undo(&mut self) -> Option<Undo> {
         if self.history.len() <= 1 {
             return None;
