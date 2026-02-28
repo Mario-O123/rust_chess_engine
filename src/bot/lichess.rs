@@ -1,3 +1,9 @@
+
+//This file was coded with the help of a LLM
+
+
+
+
 use super::{BotConfig, UciEngineHandle};
 use crate::position::{Color, Position};
 use anyhow::Result;

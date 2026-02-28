@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use super::lichess::STARTPOS_FEN;
 
 /// Internal UCI engine that handles the actual communication
+/// This file was coded with the help of a LLM 
 struct UciEngine {
     process: Child,
     stdin: ChildStdin,
@@ -57,7 +58,7 @@ impl UciEngine {
             }
         }
     }
-
+    
     fn get_best_move(&mut self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
         //startpos for standard games, "position fen..." for games that start from a custom initial position
         let fen = fen.trim();
@@ -113,7 +114,7 @@ impl UciEngineHandle {
         })
     }
 
-    /// Get best move for position (blocking call - use with spawn_blocking!)
+    /// Get best move for position (blocking call, use with spawn_blocking)
     pub fn get_best_move(&self, fen: &str, moves: &str, time_ms: u64) -> Result<String> {
         let mut engine = self
             .inner
