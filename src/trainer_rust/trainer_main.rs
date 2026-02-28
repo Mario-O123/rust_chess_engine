@@ -1,7 +1,13 @@
 //here we call the functions of the other files in the directory
 //basically do the loading and training and define train_size and size of the valid dataset
 
-use burn::backend::{Autodiff, NdArray}; //both wgpu and ndarray loaded trained on both will remove in final version after done with training
+//first call load_dataset for loading the training data
+//then decode the fen from the data into NNUE readable format(done in the load_dataset logic by calling decode_fen)
+//then initialize and load the MLP model and give it the parameters
+//then also load the previous checkpoint? if there is one
+//then call the training loop 
+
+use burn::backend::{Autodiff, NdArray}; //both wgpu and ndarray loaded trained on both will remove wgpu in final version after done with training
 use burn::module::Module;
 use std::sync::Arc;
 
@@ -38,7 +44,7 @@ pub fn main() {
     println!("Starting training!");
     //initalize model and load state
     //if there is a trained modelavailable we use th line below the model initialization if not then we comment it out
-    //try doing 781 256 128 32 and if thats better try removing one hiddenlayer and do maybe 781 256 32 or 256 64 because for nnue better to use less hidden layers?
+    //maybe try doing 781 256 128 32 and if thats better try removing one hiddenlayer and do maybe 781 256 32 or 256 64 because for nnue better to use less hidden layers?
     let mut model = MLP::<B>::new(781, 256, 64, &device);
     model = model.load_file(MODEL_PATH_4, &recorder, &device).unwrap();
 
@@ -47,14 +53,6 @@ pub fn main() {
     println!("Finished!");
 }
 
-//first call load_dataset for loading the training data
 
-//then decode the fen from the data into NNUE readable format(done in the load_dataset logic by calling decode_fen)
 
-//then initialize and load the MLP model and give it the parameters
 
-//then also load the previous checkpoint? if there is one
-
-//then write the training loop (for epochs ...)
-
-//then save the model checkpoints (now done in the training loop for improved valid loss or at the start because new positions = better generalization either way)

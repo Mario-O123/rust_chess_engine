@@ -37,7 +37,7 @@ pub fn train<B: AutodiffBackend>(
     let mut optimizer = optimizer_config.init();
     
     //load optimizer state if it exists
-    //had llm suggest recording the optimizer state as addition to the model
+    //had llm suggest recording the optimizer state as addition to the model and had it generate the code to save it due to me not finding it in the documentation 
     if Path::new(&OPTIMIZER_SAVE_PATH_4).exists() {
         let device = device; // get backend device
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
@@ -139,14 +139,14 @@ pub fn train<B: AutodiffBackend>(
             let best_model = model.clone(); // keep the best
             let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> =
                 PrettyJsonFileRecorder::new();
-
+            //save model
             best_model
                 .save_file(MODEL_PATH_4, &recorder)
                 .expect("Error in saving model");
-
+            //save optimizer state
             let optimizer_record = optimizer.to_record();
             recorder
-                .record(optimizer_record, OPTIMIZER_SAVE_PATH_4.into()) // Path can be whatever you want
+                .record(optimizer_record, OPTIMIZER_SAVE_PATH_4.into()) 
                 .expect("Failed to save optimizer");
             println!("Still Fine!");
         }

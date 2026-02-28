@@ -19,7 +19,7 @@ pub struct NeuralEval<B: Backend> {
 impl<B: Backend> NeuralEval<B> {
     //loading our device recorder and model
     pub fn load(model_path: &str) -> anyhow::Result<Self> {
-        //type B = NdArrayDevice;//(CPU)
+        //type B = NdArrayDevice;//(CPU) defined in mod.rs 
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);

@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "256"] //necessary for neural
 pub mod board;
 pub mod bot;
 pub mod engine;

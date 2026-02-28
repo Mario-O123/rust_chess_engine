@@ -53,7 +53,7 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
             features[772] = 1.0;
         }
     }
-    //en passant square in 8 neurons(1 for each file )
+    //en passant square in 8 neurons(1 for each file as rank is the same if the color is the same which is already encoded in player_to_move)
     if position.en_passant_square != None {
         let square_index = position.en_passant_square.unwrap().as_usize();
         let square_index_64 = SQUARE120_TO_SQUARE64[square_index];
