@@ -1,4 +1,5 @@
 //here we will handle the dataset loading
+// we define the dataset, batcher , dataloader structs and then define the functions to create a dataloader and to load the dataset
 
 use crate::trainer_rust::decode_fen::decode_data;
 use burn::data::dataloader::batcher::Batcher;
@@ -99,8 +100,9 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
     let dataset_size = 342_059_879;
     let batch_size = batch_size;
     let mut rng = thread_rng();
-    let indices = sample(&mut rng, dataset_size, batch_size);
 
+    //had llm suggest using the sample method, because i wanted to get random data from all over the bigger dataset instead of the first ~6m positions to get a greater variation , adn then use hashset for faster lookup
+    let indices = sample(&mut rng, dataset_size, batch_size);
     let hash_indices: HashSet<usize> = indices.iter().collect();
 
     let mut progress_counter: usize = 0;
@@ -136,27 +138,29 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
             .iter()
             .max_by_key(|x| x.get("depth").and_then(Value::as_i64).unwrap_or(0))
             .unwrap();
+        //pvs= best variation of moves
         let best_pv = &best_eval
             .get("pvs")
             .and_then(Value::as_array)
             .and_then(|pvs| pvs.get(0))
             .unwrap();
         let label: f32;
-
+        //get cp eval of the best variation
         if best_pv.get("cp").is_some() {
             let scale = 600.0;
             label = ((best_pv.get("cp").and_then(Value::as_f64).unwrap() as f32) / scale).tanh();
         } else {
             //if there is no cp in the pvs then there has to be a mate detected in which case we give it a more extreme evaluation
             //get mate labels as 1.5 or -1.5 so its outside the normal -1.0 - 1.0 range from tanh
+            let scale = 600.0;
+            let mate = best_pv.get("mate").and_then(Value::as_i64).unwrap() as f32;
 
-            let mate = best_pv.get("mate").and_then(Value::as_i64).unwrap() as i32;
-
-            if mate > 0 {
-                label = 1.5;
+            let mate_label = if mate > 0.0 {
+                10_000.0 - (mate * 10.0)
             } else {
-                label = -1.5;
-            }
+                 -10_000.0 - (mate * 10.0)
+            };
+            label = (mate_label / scale).tanh();
         }
         //decode the fen into our neuron format then pass it into the vector of positions and also push the eal into the eval vec
         positions_x.push(decode_data(fen));
@@ -166,10 +170,13 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
             break;
         }
     }
+
+    //had llm suggest zipping evals and positions together as part of randomizing them better , so that they would not get mixed up(each position has a special corresponding eval)
     //here we zip together the evals and position because we want them to stay together when we shuffle the vectors for randomly distributed positions across our vector
     let mut samples_vec: Vec<([f32; 781], f32)> =
         positions_x.into_iter().zip(evals_y.into_iter()).collect();
 
+    
     samples_vec.shuffle(&mut rng);
 
     let (positions_x_rndm, evals_y_rndm) = samples_vec.into_iter().unzip();

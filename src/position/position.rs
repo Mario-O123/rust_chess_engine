@@ -244,24 +244,40 @@ impl Position {
     pub fn find_pieces(&self, color: Color, kind: PieceKind) -> Vec<Square> {
         let mut pieces_found: Vec<Square> = Vec::new();
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece
+
+            match maybe_piece {
+                Cell::Piece(piece) if piece.color == color && piece.kind == kind => {
+                    pieces_found.push(Square::new(i as u8))
+                }
+                _ => {}
+            }
+
+            /*if let Cell::Piece(piece) = maybe_piece
                 && piece.color == color
                 && piece.kind == kind
             {
                 pieces_found.push(Square::new(i as u8))
-            }
+            }*/
         }
         pieces_found
     }
 
     pub fn find_single_piece(&self, color: Color, kind: PieceKind) -> Option<Square> {
         for (i, maybe_piece) in self.board.iter().enumerate() {
-            if let Cell::Piece(piece) = maybe_piece
+            
+            match maybe_piece {
+                Cell::Piece(piece) if piece.color == color && piece.kind == kind => {
+                return Some(Square::new(i as u8));
+                }
+                _ => {}
+            }
+            
+            /*if let Cell::Piece(piece) = maybe_piece
                 && piece.color == color
                 && piece.kind == kind
             {
                 return Some(Square::new(i as u8));
-            }
+            }*/
         }
         None
     }
@@ -460,17 +476,11 @@ impl Position {
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
                         //fallback prohibits a half turn in release build
-                        Piece {
-                            color: moving_piece.color,
-                            kind: PieceKind::Rook,
-                        }
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
                     }
                 };
 
-                debug_assert!(
-                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
-                    "castling: wrong rook on rook_from"
-                );
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
@@ -486,17 +496,11 @@ impl Position {
                     Cell::Piece(p) => p,
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
-                        Piece {
-                            color: moving_piece.color,
-                            kind: PieceKind::Rook,
-                        }
+                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
                     }
                 };
 
-                debug_assert!(
-                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
-                    "castling: wrong rook on rook_from"
-                );
+                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
@@ -845,21 +849,6 @@ impl Position {
         self.move_counter = undo.prev_move_counter;
         self.king_sq = undo.prev_king_sq;
         self.piece_counter = undo.prev_piece_counter;
-
-        debug_assert_eq!(self.zobrist, self.compute_zobrist());
-        debug_assert_eq!(self.piece_counter, self.compute_piece_counter());
-        
-        #[cfg(debug_assertions)]
-        {
-        debug_assert_eq!(
-            self.king_sq,
-            self.compute_king_sq(),
-            "undo_move broke king_sq cache: cached={:?} computed={:?} fen={}",
-            self.king_sq,
-            self.compute_king_sq(),
-            self.to_fen()
-        );
-        }
     }
 }
 
