@@ -64,12 +64,19 @@ mod tests {
         let legal_moves = perft(&pos, 4);
         assert_eq!(legal_moves, 197281);
     }
+
+    ///verifies the node count at depth 5 against the well-known reference value
     #[test]
     #[ignore]
     fn startpos_depth_five() {
         let pos = Position::starting_position();
         assert_eq!(perft(&pos, 5), 4_865_609);
     }
+
+    ///slow (ignored by default) perft regression test for the classic "kiwipete" position
+    ///this is a standard perft benchmark used to validate move generation correctness
+    ///especially for castling, checks, pins, and en-passant interactions
+    ///# note: for the setup of this test, LLM was a help
     #[test]
     #[ignore]
     fn kiwipete_depth_four() {
