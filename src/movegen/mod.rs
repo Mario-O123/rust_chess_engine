@@ -1,15 +1,12 @@
-// === Public API ===
 pub mod attack;
 pub mod legal_move_filter;
 pub mod r#move;
 pub mod perft;
 pub mod pseudo_legal_movegen;
 
-// === Internal helpers ===
 mod pawn;
 mod piece;
 
-// === Re-exports for clean imports ===
 pub use legal_move_filter::filter_legal_moves;
 pub use r#move::{Move, MoveType, PromotionPiece};
 pub use perft::perft;
@@ -17,13 +14,14 @@ pub use pseudo_legal_movegen::{generate_pseudo_legal_moves, generate_pseudo_lega
 
 pub use attack::is_in_check;
 
-use crate::position::{self, Cell, Position};
+use crate::position::{Cell, Position};
 
 #[inline]
 fn is_capture(position: &Position, mv: Move) -> bool {
     mv.is_en_passant() || matches!(position.board[mv.to_sq()], Cell::Piece(_))
 }
 
+//generates legal moves list 
 pub fn generate_legal_moves_in_place(pos: &mut Position, out: &mut Vec<Move>) {
     out.clear();
     let stm = pos.player_to_move;
@@ -40,6 +38,7 @@ pub fn generate_legal_moves_in_place(pos: &mut Position, out: &mut Vec<Move>) {
     }
 }
 
+//generates list with legal captures
 pub fn generate_legal_captures_in_place(pos: &mut Position, out: &mut Vec<Move>) {
     out.clear();
     let stm = pos.player_to_move;

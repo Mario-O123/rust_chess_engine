@@ -197,7 +197,7 @@ pub fn find_king(position: &Position, color: Color) -> Option<usize> {
     None
 }
 
-//gibt square120 indizes der angreifer wieder
+//gives square120 index of attackers
 pub fn attackers_of_square(position: &Position, square120: usize, by_color: Color) -> Vec<usize> {
     let mut attackers = Vec::new();
 
@@ -478,7 +478,7 @@ mod tests {
 
         let e8 = sq(4, 7);
         let e1 = sq(4, 0);
-        let a1 = sq(0, 0); // irgendwo für den weißen König
+        let a1 = sq(0, 0); 
 
         put(&mut pos, e8, Color::Black, PieceKind::King);
         put(&mut pos, e1, Color::White, PieceKind::Rook);
@@ -515,7 +515,14 @@ mod tests {
         assert!(!is_square_attacked(&pos, h8, Color::Black));
     }
 
-    //test to check for a particular sequence which resulted in error while playing
+    ///test to check for a particular sequence which resulted in error while playing
+    ///specific move used to corrupt internal state such that a cached king squar (or a derived square)
+    ///could become off-board., this later triggered debug assertions
+    ///in attack detection/ check detection (eg. when converting a square to mailbox-120)
+    ///this test ensures that:
+    /// -generating legal moves works for the position
+    /// -the expected move "h2h3" is present
+    /// -making and undoing that move does not leave the position in an invalid state
     #[test]
     fn regression_no_king_cache_offboard_after_sequence() {
         use crate::movegen::{generate_legal_moves_in_place, Move};

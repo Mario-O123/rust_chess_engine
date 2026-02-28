@@ -1,5 +1,3 @@
-// const sliding: [bool;5] = [false, true, true, true, false]; //knight bishop rook queen king
-
 use crate::board::mailbox120::{
     BISHOP_DIRECTIONS, BOARD_SIZE, KNIGHT_DIRECTIONS, QUEEN_DIRECTIONS as KING_QUEEN_DIRECTIONS,
     ROOK_DIRECTIONS, is_on_board,
@@ -15,6 +13,10 @@ pub fn generate_pseudo_legal_moves(position: &Position) -> Vec<Move> {
     move_list
 }
 
+///generates pseudo-legal moves for the side to move and writes them into move_list
+///"pseudo-legal":
+/// -moves follow piece movement rules (including captures, promotions...)
+/// -but they are not guaranteed to keep your own king safe
 pub fn generate_pseudo_legal_moves_in_place(position: &Position, move_list: &mut Vec<Move>) {
     move_list.clear();
 
