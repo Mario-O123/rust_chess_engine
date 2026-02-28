@@ -2,8 +2,9 @@
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use crate::position::{Cell, Color, Piece, PieceKind, Position};
 
-//similar to decode_fen but instead of fen takes our position struct
+//similar to decode_fen.rs from the trainer_rust  but instead of a fen it takes our position struct from position.rs
 
+//constants for castling: white-kingside, white-queenside, ...
 const WK: u8 = 0b0001;
 const WQ: u8 = 0b0010;
 const BK: u8 = 0b0100;
@@ -17,10 +18,12 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
         if sq64 < 0 {
             continue;
         }
+        //we need to flip the board here since in training we parsed top down but in the position struct its bottom up
         let row = sq64 / 8;
         let col = sq64 % 8;
         let sq64_flipped = (7 - row) * 8 + col;
 
+        //we go over each cell if there is a piece we put a 1.0 on the index of the corresponding 64 neuron slice for the piece
         match cell {
             Cell::Empty => {}
             Cell::Piece(piece) => {
@@ -50,7 +53,7 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
             features[772] = 1.0;
         }
     }
-    //en passant square in 8 neurons(1 for each file )
+    //en passant square in 8 neurons(1 for each file as rank is the same if the color is the same which is already encoded in player_to_move)
     if position.en_passant_square != None {
         let square_index = position.en_passant_square.unwrap().as_usize();
         let square_index_64 = SQUARE120_TO_SQUARE64[square_index];
@@ -64,7 +67,7 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
 }
 
 fn decode_pos_pieces(piece: &Piece) -> Option<usize> {
-    //here match the piece to the 64 sections of the 768 board neurons based on color and piecekind
+    //here match the piece to the 64 sections of the 768 board neurons based on color and piecekind just like in decode_fen.rs
     if piece.color == Color::White {
         match piece.kind {
             PieceKind::Pawn => Some(0),
@@ -86,13 +89,16 @@ fn decode_pos_pieces(piece: &Piece) -> Option<usize> {
     }
 }
 
+//tests to check if feature.rs matches decode_fen.rs (need features nn and trainer to run)
+//used llm to rewrite prior test due to wrong/weird results being produced by the earlier test
 #[cfg(test)]
 mod nn_alignment_tests {
     use super::decode_pos_nn;
     use crate::position::Position;
+    
     use crate::trainer_rust::decode_fen::decode_data;
 
-    /// Returns all indices set to 1 in a given 64-square piece plane
+    ///Returns all indices set to 1 in a given 64-square piece plane
     fn ones_in_plane(features: &[f32; 781], plane: usize) -> Vec<usize> {
         let start = plane * 64;
         let end = start + 64;
@@ -107,7 +113,7 @@ mod nn_alignment_tests {
 
     #[test]
     fn engine_matches_trainer_feature_indices() {
-        // FEN: White king on a1, Black king on h8
+        //FEN: White king on a1, Black king on h8
         let fen = "7k/8/8/8/8/8/8/K7 w - - 0 1";
         let pos = Position::from_fen(fen).expect("FEN should parse");
 
@@ -115,14 +121,14 @@ mod nn_alignment_tests {
         let feat_engine = decode_pos_nn(&pos);
         let feat_trainer = decode_data(fen);
 
-        // Compare all 12 piece planes
+        //Compare all 12 piece planes
         for plane in 0..12 {
             let eng = ones_in_plane(&feat_engine, plane);
             let trn = ones_in_plane(&feat_trainer, plane);
             assert_eq!(eng, trn, "Piece plane {} does not match trainer", plane);
         }
 
-        // Compare remaining neurons (player to move, castling, en passant)
+        //Compare remaining neurons (player to move, castling, en passant)
         assert_eq!(&feat_engine[768..], &feat_trainer[768..], "Non-piece features mismatch");
     }
 

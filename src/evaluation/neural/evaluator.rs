@@ -1,12 +1,13 @@
-//here a board is given a score so calls fature.rs then the mlp structure from the trainer
+//here is the final forward pass where we give a position a score by having it run through a forward pass of our mlp with the trained weights from our trainer
+//to encode the Positions struct from our position.rs into the same format used to train we call feature.rs
 
 use super::super::Evaluator;
 use crate::evaluation::neural::feature::decode_pos_nn;
 use crate::position::Position;
 use crate::nn_model::mlp_structure::MLP;
 use burn::module::Module;
-use burn::record::{FullPrecisionSettings, PrettyJsonFileRecorder, Recorder};
-use std::path::PathBuf;
+use burn::record::FullPrecisionSettings;
+use burn::record::PrettyJsonFileRecorder;
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 
@@ -18,18 +19,15 @@ pub struct NeuralEval<B: Backend> {
 impl<B: Backend> NeuralEval<B> {
     //loading our device recorder and model
     pub fn load(model_path: &str) -> anyhow::Result<Self> {
-        //type B = NdArrayDevice;//(CPU)
+        //type B = NdArrayDevice;//(CPU) defined in mod.rs 
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);
-        
-        let record = recorder.load(PathBuf::from(model_path), &device)?;
-
-        model = model.load_record(record);
+        model = model.load_file(model_path, &recorder, &device).unwrap();
 
         Ok(Self { model, device })
     }
-    //deocdeing the Position struct into our neuron format
+    //encodeing the Position struct into our neuron format
     fn encode(&self, position: &Position) -> Tensor<B, 2> {
         let nn_input = decode_pos_nn(position);
         let nn_input_tensor = Tensor::<B, 1>::from_floats(&nn_input[..], &self.device);
@@ -42,7 +40,9 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
     //the pass into our mlp which returns a score
     fn evaluate(&mut self, position: &Position) -> i32 {
         let input = self.encode(position);
+        
         let prediction = self.model.forward(input);
+        
         let score: f32 = prediction.to_data().to_vec::<f32>().unwrap()[0];
 
         if score >= 1.2 {
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn nn_eval_starting_pos() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -84,7 +84,7 @@ mod tests {
     //161 -> 173 -> 235 -> 185 -> 192 -> 227 -> 233 -> 219 -> 206 -> 253 -> 334 -> 254
     #[test]
     fn eval_random_pos() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -104,7 +104,7 @@ mod tests {
     //716 -> 30000 -> 30000 -> 30000 -> 30000 -> 30000
     #[test]
     fn eval_random_pos_2() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -122,7 +122,7 @@ mod tests {
     //278
     #[test]
     fn eval_random_pos_3() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
@@ -140,7 +140,7 @@ mod tests {
     //rnb1k2r/pp3pbp/1N1ppnp1/2pP4/4P3/3Q1N2/PPP2PPP/R1B1KB1R b KQkq - 0 8
     #[test]
     fn eval_random_pos_4() {
-        let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
+        let model_path = "src/trainer_rust/models/mlp_checkpoint_4.json";
 
         let mut eval = NeuralEval::<NdArray>::load(model_path);
 
