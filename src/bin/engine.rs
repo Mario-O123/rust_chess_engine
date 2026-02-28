@@ -1,3 +1,14 @@
+//! Minimal UCI driver for `rust_chess_engine`.
+//!
+//! This binary speaks a small subset of the UCI protocol via stdin/stdout and
+//! connects it to our `Searcher` implementation.
+//! 
+//! Evaluation:
+//! - Default: classical evaluation
+//!     (build example: `cargo run --release --bin bot`).
+//! - With feature neural-eval: loads a neural model and uses NeuralEval
+//!     (build example: `cargo run --release --features neural-eval --bin bot`).
+
 use std::io::{self, BufRead, Write};
 
 use rust_chess_engine::evaluation::ClassicalEval;
@@ -5,7 +16,10 @@ use rust_chess_engine::movegen::{Move, filter_legal_moves, generate_pseudo_legal
 use rust_chess_engine::position::Position;
 use rust_chess_engine::search::{SearchLimits, Searcher};
 
+/// Default thinking time (ms) used if `go movetime <ms>` is missing.
 const DEFAULT_MOVETIME: u64 = 2000;
+
+/// Depth limit for the search, regardless of given time.
 const MAXDEPTH: u8 = 12;
 
 fn main() {
@@ -17,6 +31,7 @@ fn main() {
     // To use neural evaluation use "cargo run --release --features neural-eval --bin bot"
     let mut searcher = make_searcher();
 
+    // UCI requires immediate flushing; many GUIs expect line-buffered responses.
     let mut send = |s: &str| {
         writeln!(out, "{s}").unwrap();
         out.flush().unwrap();
@@ -63,6 +78,15 @@ fn main() {
     }
 }
 
+/// Parses a UCI `position ...` command and updates `pos`.
+///
+/// Supported formats:
+/// - `position startpos [moves ...]`
+/// - `position fen <6 fen fields> [moves ...]`
+///
+/// After the base position is set, any following moves are applied in order.
+/// If an invalid FEN or an illegal move is encountered, this function returns
+/// early and keeps the partially updated state (current behavior).
 fn handle_position(line: &str, pos: &mut Position) {
     let mut parts = line.split_whitespace();
     let _ = parts.next();
@@ -105,6 +129,7 @@ fn handle_position(line: &str, pos: &mut Position) {
     }
 }
 
+/// Extracts `movetime <ms>` from a UCI `go ...` command.
 fn parse_movetime_ms(line: &str) -> Option<u64> {
     let mut it = line.split_whitespace();
     while let Some(tok) = it.next() {
@@ -115,6 +140,7 @@ fn parse_movetime_ms(line: &str) -> Option<u64> {
     None
 }
 
+/// Creates a `Searcher` using the neural evaluation (feature-gated).
 #[cfg(feature = "neural-eval")]
 fn make_searcher() -> Searcher<NeuralEval> {
     let model_path = "src/trainer_rust/models/mlp_checkpoint_3.json";
@@ -122,16 +148,22 @@ fn make_searcher() -> Searcher<NeuralEval> {
     Searcher::new(eval)
 }
 
+/// Creates a `Searcher` using the classical evaluation (default).
 #[cfg(not(feature = "neural-eval"))]
 fn make_searcher() -> Searcher<ClassicalEval> {
     Searcher::new(ClassicalEval::new())
 }
 
+/// Generates all legal moves for the current position.
 fn legal_moves(pos: &Position) -> Vec<Move> {
     let pseudo = generate_pseudo_legal_moves(pos);
     filter_legal_moves(pos, &pseudo)
 }
 
+/// Finds the matching legal move for a given UCI move string (e.g. `e2e4`, `e7e8q`).
+///
+/// We parse the UCI move into a key move and then match by from/to and promotion.
+/// This ignores any additional internal move flags and ensures the move is legal
 fn find_legal_move_from_uci(input: &str, legal: &[Move]) -> Option<Move> {
     let key = Move::from_uci(input)?;
     legal.iter().copied().find(|m| {
