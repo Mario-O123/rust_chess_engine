@@ -479,10 +479,31 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
+
+    ///retunrns true if score represents a mate core
+    ///the engine uses a large constant [`MATE`]
+    ///mate scores are encoded near +MATE / - MATE, often with a ply offset (eg. MATE-ply)
+    ///to prefer faster mates
+    ///
+    /// We intentionally keep a safety buffer (`MATE - 1000`) so that very large non-mate
+    /// evaluation scores are not accidentally treated as mate scores.
     fn is_mate_score(score: i32) -> bool {
         score.abs() >= MATE - 1000
     }
 
+     
+    ///converts a search score into a TT-storable score
+    ///why this exists:
+    /// -inn the search, mates are typically represented as "MATE - ply" (or "-MATE + ply"),
+    ///   so that "mate in 2" is better than "mate in 5".
+    /// - If you store that raw number in the TT and later probe it at a *different* `ply`,
+    ///   the value becomes inconsistent (it would look like a different mate distance).
+    ///
+    /// This function makes mate scores **ply-neutral** for storage:
+    /// - positive mate: `stored = score + ply`  (so `MATE - ply` becomes exactly `MATE`)
+    /// - negative mate: `stored = score - ply`  (so `-MATE + ply` becomes exactly `-MATE`)
+    ///
+    /// Non-mate scores are stored unchanged.
     fn to_tt_score(score: i32, ply: i32) -> i32 {
         if score >= MATE - 1000 {
             score + ply
@@ -493,6 +514,12 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
+    ///onverts a stored TT score back into the **current search ply representation.
+    ///this is the inverse of [`Self::to_tt_score`]. After probing the TT, you want to
+    ///reconstruct the correct "mate distance from here" score: 
+    /// -positive mate: score = stored - ply
+    /// -negative mate: score = stored + ply
+    ///non-mate scores are returned unchanged.
     fn from_tt_score(score: i32, ply: i32) -> i32 {
         if score >= MATE - 1000 {
             score - ply
@@ -880,7 +907,7 @@ mod tests {
         }
     }
 
-    //coded without LLM
+    //the FEN string in this test was created with the help of a LLM
     #[test]
     fn test_tt_does_not_change_result_fixed_depth() {
         use crate::search::tt::TranspositionTable;

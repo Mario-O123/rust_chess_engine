@@ -1,12 +1,29 @@
+//! transposition Table (TT)
+//!
+//! this module implements a simple direct-mapped transposition table:
+//! each zobrist key maps to exactly one slot (key & mask)
+//!
+//! the TT is used to:
+//! -reuse previously searched positions (speedups via cutoffs),
+//! -improve move ordering by storing a "best move" per position.
+//!
 use crate::movegen::Move;
 
+///the type of score stored in TT entry relative to the alpha-beta window
+///in alpha-beta search you often do not know the exact score of a node:
+///you only know it is at least alpha (lower bound) or at most beta (upper bound)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Bound {
+    ///the stored score is the exact minimax score for the searched depth
     Exact,
+    ///the true score is >= the stored score (fail high/ cutoff happened)
     Lower,
+    ///the true score is <= the stored score (fail low)
     Upper,
 }
 
+///tne TT entry
+///this is a single bucket entry (direct mapped), so collisions overwrite previous content
 #[derive(Clone, Copy, Debug)]
 pub struct TTEntry {
     pub key: u64,
@@ -35,6 +52,9 @@ pub struct TranspositionTable {
 
 
 impl TranspositionTable {
+    ///returns a disabled TT
+    /// -probe() will always return "None"
+    /// -store() is a no-op
     pub fn disabled() -> Self {
         Self {
             entries: Vec::new(),
@@ -42,6 +62,7 @@ impl TranspositionTable {
         }
     }
 
+    ///creates a new TT
     pub fn new_mb(size_mb: usize) -> Self {
         if size_mb == 0 {
             return Self::disabled();
@@ -63,6 +84,9 @@ impl TranspositionTable {
         (key as usize) & self.mask
     }
 
+    ///probes the TT and returns the entry if the slot matches the key
+    ///because this TT is direct-mapped, a probe can miss due to collisions even if the
+    ///position was previously stored (the slot may have been overwritten by another key
     pub fn probe(&self, key: u64) -> Option<TTEntry> {
         if self.entries.is_empty() {
             return None;
@@ -76,6 +100,11 @@ impl TranspositionTable {
         }
     }
 
+    ///stores an entry in the TT
+    ///replacement policy:
+    /// -replace empty slots
+    /// -replace if same key and the new depth is >= the stored depth
+    /// -replace if different key and the new depth is strictly deeper than what's in the slot
     pub fn store(&mut self, key: u64, depth: i32, score: i32, bound: Bound, best: Move) {
      if self.entries.is_empty() {
         return;
