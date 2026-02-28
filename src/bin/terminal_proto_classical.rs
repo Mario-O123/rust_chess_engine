@@ -1,3 +1,6 @@
+//! Terminal REPL using the classical evaluator
+//! this binary is the baseline mode: no model learning
+
 mod terminal_common;
 
 use rust_chess_engine::evaluation::{ClassicalEval};
@@ -9,14 +12,21 @@ fn main() {
 
 #[cfg(test)]
 mod terminal_promo_cli_tests {
+    //! Tests for the "go ..." command parsing
+    //! these tests ensure that REPL's search-limit parsing is stable and predictable
+    //! covered behavior:
+    //! -empty tokens keep defaults unchanged
+    //! -depth sticks to at least 1
+    //! -time and nodes override defaults
+    //! -unknown tokens and invalid values are ignored
     use crate::terminal_common::parse_go_limits;
     use rust_chess_engine::search::SearchLimits;
 
     fn default_limits() -> SearchLimits {
         SearchLimits {
-            max_depth: 5,
+            max_depth: 7,
             max_nodes: None,
-            max_time_ms: None,
+            max_time_ms: Some(2000),
         }
     }
     #[test]
@@ -44,8 +54,8 @@ mod terminal_promo_cli_tests {
     #[test]
     fn time_and_nodes_override_defaults() {
         let limits = parse_go_limits(&["time", "1000", "nodes", "200000"], default_limits());
-        assert_eq!(limits.max_depth, 5);
-        assert_eq!(limits.max_time_ms, Some(2000));
+        assert_eq!(limits.max_depth, 7);
+        assert_eq!(limits.max_time_ms, Some(1000));
         assert_eq!(limits.max_nodes, Some(200000));
     }
 
@@ -64,6 +74,8 @@ mod terminal_promo_cli_tests {
 
 #[cfg(test)]
 mod terminal_promo_handle_line_tests {
+    //! tests for the REPL command handling
+    //! tests validate core terminal semantics independent of the evaluator type
     use crate::terminal_common::EngineCli;
     use rust_chess_engine::evaluation::ClassicalEval;
 

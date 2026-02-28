@@ -1,3 +1,36 @@
+//! Shared terminal-REPL for terminal_proto_classical and terminal_proto_neural
+//! both binaries use the same UI, we use:
+//! 
+//! -identical inüut syntax (UCI moves, commands)
+//! -identical output format (FEN, search info, scores)
+//! -identical default search budget (depth/time/nodes)
+//! 
+//! input format: UCI moves (eg. e2e4), promotion (eg g7g8q)
+//! commands:
+//! -help
+//! -new
+//! -undo/undo2
+//! -engine on/off (toggle outomatic engine reply after your move)
+//! -eval (static evaluation of the current position)
+//! -go [depth N| time MS| nodes N] (search noew and play one engine move)
+//! -quit/exit
+//! 
+//! use of "go ..." command: primarily to help with debugging as comparison tool
+//! it lets us control the search budget deterministically:
+//! -go depth N: comparable depth-limited runs
+//! -go nodes N: comparable work budget as max limit of nodes to be visited in search
+//! -go time MS: time budget for how long the search is allowed to take
+//! by setting and playing with the different combinations for these parameters in search,
+//! we can adjust the limits of our engine and compare classical and neural evaluators to see
+//! if they perform differently with the same settings.
+//! 
+//! the engine prints "go :"
+//! -bestmove
+//! -score in centipawns as "score(stm)" (side to move) and score(White) (White perspective as default)
+//! -reached depth, nodes, elapsed ms, stop reason
+//! 
+//!
+
 use std::time::Instant;
 use std::io::{self, Write};
 
@@ -19,7 +52,8 @@ pub(crate) fn format_status(status: GameStatus) -> String {
         }
 }
 
-
+///parse tokens after "go ..." and selectively override the defaults
+///unknown tokens or invalid numeric values are ignored
 pub(crate) fn parse_go_limits(go_tokens: &[&str], default_limits: SearchLimits) -> SearchLimits {
         let mut effective_limits = default_limits;
         let mut token_index = 0;
@@ -76,6 +110,7 @@ pub(crate) fn print_board(pos: &Position) {
     println!("\n   a b c d e f g h");
 }
 
+///matches a unicode chess piece to the (Color, PieceKind), the chess symbols were copied from the internet
 pub(crate) fn piece_to_char(color: Color, kind: PieceKind) -> char {
     match (color, kind) {
         (Color::White, PieceKind::Pawn) => '♟',
@@ -94,6 +129,7 @@ pub(crate) fn piece_to_char(color: Color, kind: PieceKind) -> char {
     }
 }
 
+///finds a legal move by matching a UCI move string or promotion
 pub(crate) fn find_legal_move_from_uci(input: &str, legal: &[Move]) -> Option<Move> {
     let key = Move::from_uci(input)?;
     legal.iter().copied().find(|m| {
@@ -101,7 +137,8 @@ pub(crate) fn find_legal_move_from_uci(input: &str, legal: &[Move]) -> Option<Mo
     })
 }
 
-
+///CLI state: holds the Game, Searcher and UI settings
+///"E" is a generic [`Evaluator`] so the same REPL can run with classical or neural evaluation
 pub(crate) struct EngineCli<E: Evaluator> {
     pub(crate) game: Game,
     pub(crate) searcher: Searcher<E>,
@@ -112,6 +149,7 @@ pub(crate) struct EngineCli<E: Evaluator> {
 }
 
 impl<E: Evaluator> EngineCli<E> {
+    ///create a new REPL session state with a fresh game and default search limits
     pub(crate) fn new(eval_for_search: E, eval_view: E) -> Self {
         Self {
             game: Game::new(),
@@ -144,6 +182,10 @@ impl<E: Evaluator> EngineCli<E> {
         }
     }
 
+    ///run a search and play the resulting best move
+    ///the output (for debug purposes) will include:
+    /// -score from side to move and white perspective
+    /// -nodes, time, reached depth, stop reason
     fn play_engine_move(&mut self, limits: SearchLimits) {
         let root_side_to_move = self.game.position().player_to_move;
 
@@ -200,6 +242,10 @@ impl<E: Evaluator> EngineCli<E> {
         self.game.try_play_move(result.best_move);
     }
 
+    ///handle one input line
+    ///returns:
+    /// -true-> exit the REPL (quit/exit)
+    /// -false-> keep running
     pub(crate) fn handle_line(&mut self, input: &str) -> bool {
         let parts: Vec<&str> = input.split_whitespace().collect();
         let cmd = parts[0].to_ascii_lowercase();
@@ -307,7 +353,7 @@ impl<E: Evaluator> EngineCli<E> {
     }
 }
 
-
+///start the REPL, called by both binaries
 pub(crate) fn run_repl<E: Evaluator>(eval_for_search: E, eval_view: E) {
     let  mut cli = EngineCli::new(eval_for_search, eval_view);
 

@@ -1,3 +1,5 @@
+//! Terminal REPL using the neural evaluator (NN)
+//! this binary loads a trained model and uses it for search evaluation
 mod terminal_common;
 
 use rust_chess_engine::evaluation::neural::NeuralEval;
