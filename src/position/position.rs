@@ -375,7 +375,16 @@ impl Position {
         to_check & mask != 0
     }
 
-    //Attention: works only on legal moves
+    ///# preconditions:
+    /// -has to be called with a legal [`Move`]
+    ///applies a move to the current position
+    ///this updates:
+    /// -mailbox120 board
+    /// -side to move
+    /// -en-passant target square
+    /// -castling rights
+    /// -half-move clock and move counter
+    /// -cached king_sq, piece_counter, zobrist hash
     pub fn make_move(&mut self, mv: Move) {
         const WK: u8 = 0b0001;
         const WQ: u8 = 0b0010;
@@ -670,6 +679,7 @@ impl Position {
     //helpers for make_move
 
     //we could also use square120_to_square64 but we would have more overhead in the hotpath, look into it
+    ///converts a mailbox120 square index into a 0..64 square64 index
     #[inline]
     fn sq64(sq120: usize) -> usize {
         let s = SQUARE120_TO_SQUARE64[sq120];
@@ -677,12 +687,14 @@ impl Position {
         s as usize
     }
 
+    ///returns the zobrist key contribution for piece on sq120
     #[inline]
     fn zob_piece(piece: Piece, sq120: usize) -> u64 {
         let s64 = Self::sq64(sq120);
         ZOBRIST.zobrist_values[piece.color.idx()][piece.kind.idx()][s64]
     }
 
+    ///returns the zobrist key contribution for the current en-passant square
     #[inline]
     fn zob_ep(ep_sq120: Square) -> u64 {
         let s64 = Self::sq64(ep_sq120.as_usize());
@@ -690,11 +702,14 @@ impl Position {
         ZOBRIST.zobrist_enpassant[file]
     }
 
+    ///maps a piece to its index in the piece_counter array
     #[inline]
     fn pc_idx(piece: Piece) -> usize {
         piece.kind.idx() + piece.color.idx() * 6
     }
 
+    ///XORs the zobrist castling keys for castling rights that changed (old→ new)
+    ///this is cheaper than recomputing castling-related hash state from scratch
     #[inline]
     fn xor_castling_delta(hash: &mut u64, old: u8, new: u8) {
         const WK: u8 = 0b0001;
@@ -709,6 +724,13 @@ impl Position {
         }
     }
 
+    ///applies a move like [`Position::make_move`], but returns an [`Undo`] snapshot
+    ///the returned Undo contains enough information to restore the previous position via [`Position::undo_move`]
+    ///this includes:
+    /// -previous counters/flags (side to move, castling, en-passant, clocks, caches)
+    /// -captured piece information (including en-passant captured square)
+    /// -rook squares for castling moves
+    ///#preconditions: must be called with legal [`Move`]
     pub fn make_move_with_undo(&mut self, mv: Move) -> Undo {
         let from = mv.from_sq();
         let to = mv.to_sq();
@@ -797,6 +819,10 @@ impl Position {
         undo
     }
 
+    ///restores the position to the state captured in Undo
+    ///this is inteded to be used with an [`Undo`] produced by [`Position::make_move_with_undo`] on the same position
+    ///besides reverting the board, this also restores caches fields
+    ///(zobrist, king_sq, piece_counter, clocks, castling, en-passant)
     pub fn undo_move(&mut self, undo: Undo) {
         let from = undo.mv.from_sq();
         let to = undo.mv.to_sq();
@@ -889,6 +915,7 @@ impl Position {
 
 #[cfg(test)]
 pub(super) mod test_util {
+    //!# note: these helpers were created with the help of a LLM
     use super::*;
 
     //helpers for testing
@@ -917,6 +944,7 @@ pub(super) mod test_util {
 
 #[cfg(test)]
 mod make_move_tests {
+    //! focus: special move rules and state updates (promotion, catling, castling-rights changes)
     use super::test_util::*;
     use super::*;
     use crate::movegen::{Move, PromotionPiece};
@@ -1091,6 +1119,7 @@ mod make_move_tests {
 
 #[cfg(test)]
 mod undo_tests {
+    //! these tests verify round-trip correctness and that undo metadata is set correctly
     use super::test_util::*;
     use super::*;
     use crate::movegen::{Move, PromotionPiece};

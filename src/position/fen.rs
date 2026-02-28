@@ -1,7 +1,26 @@
+//! FEN parsing and encoding
+//! this module implements conversion between a [`Position`] and a FEN string (Forsyth-Edwards Notation)
+//! FEN is the quickest way to describe/load a chess position without replaying a hwile game
+//! its often used as a test tool and a standard if the engine supports UCI
+//! 
+//! very basic description of parsing policy:
+//! -expects exactly 6 fields: piece placement (on the board), active color, castling, en-passant, halfmove clock, fullmove counter
+//! -active color accepts only w/b
+//! -castling rights accept any order but reject duplicates
+//! -en-passant is validated (must be rank 3 or 6 and consistent with side to move)
+//! -fullmove counter must be >=1
+//! 
+//! very basic description of encoding policy:
+//! -emit 6 fields
+//! -castling is written in canonical order KQkq or "-"
+//! -en-passant is written as UCI (example "e2") style or "-"
+
 use crate::board::conversion::{square120_from_string, square120_to_string};
 use crate::board::mailbox120::{is_on_board, square120_from_file_rank};
 use crate::position::{Cell, Color, Piece, PieceKind, Position, Square};
 
+///errors that can occur while parsing a FEN string into a [`Position`]
+///variants are designed to be specific enough for debugging
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FenError {
     InvalidFieldCount { found: usize },
@@ -22,6 +41,22 @@ pub enum FenError {
 }
 
 impl Position {
+    ///parses a full FEN string into a [`Position`]
+    ///
+    ///expects exactly 6 fields:
+    /// 1) piece placement
+    /// 2) active color (w/b)
+    /// 3) castling rights (eg. "KQkq"... or "-")
+    /// 4) en-passant target square
+    /// 5) halfmove clock
+    /// 6) fullmove counter
+    /// 
+    ///on success, this also computes cached fields like:
+    /// -king squares
+    /// -piece counters
+    /// -zobrist hash
+    /// 
+    ///returns [`FenError`] if any field is malformed or inconsistent
     pub fn from_fen(fen_string: &str) -> Result<Self, FenError> {
         let fields: Vec<&str> = fen_string.split_whitespace().collect();
         if fields.len() != 6 {
@@ -62,6 +97,11 @@ impl Position {
         Ok(pos)
     }
 
+    ///encodes a [`Position`] to a canonical FEN string
+    /// 
+    ///canonicalization behavior:
+    /// -castling rights are output in "KQkq" order or "-"
+    /// -en-passant is output as UCI style like "e2" or "-"
     pub fn to_fen(&self) -> String {
         let board = piece_placement_to_string(self);
         let active_color = active_color_to_string(self.player_to_move);
@@ -75,6 +115,8 @@ impl Position {
     }
 }
 
+///parses the FEN piece placement field and writes pieces into pos.board
+///the field must contain exactly 8 ranks separated by "/", starting from rank 8 down to rank 1
 fn parse_piece_placement(board_fields: &str, pos: &mut Position) -> Result<(), FenError> {
     let ranks: Vec<&str> = board_fields.split("/").collect();
     if ranks.len() != 8 {
@@ -88,6 +130,12 @@ fn parse_piece_placement(board_fields: &str, pos: &mut Position) -> Result<(), F
     Ok(())
 }
 
+///parses one FEN rank string (eg. "rnbqkbnr") into the given "pos"
+///"fen_rank" is in FEN order, internally ranks are stored as 0..=7, so we convert via "rank=7-fen_rank"
+///errors:
+/// -rejects digits outside of 1..=8
+/// -rejects ranks that do not expand to exactly 8 files
+/// -rejects unknown piece characters
 fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Result<(), FenError> {
     let rank = 7 - fen_rank; //this way, the first fen_rank we get from enumerate(), which is semantically 8, gets turned into 7 internally
 
@@ -141,7 +189,8 @@ fn parse_one_rank(fen_rank: usize, rank_string: &str, pos: &mut Position) -> Res
     Ok(())
 }
 
-//helper for conversion of a char into a valid piece, think about maybe moving helper to board/conversion.rs
+///converts a single FEN piece character into a [`Piece`]
+///uppercase letters represent White pieces, lowercase letters represent BLack pieces
 fn fen_char_to_piece(ch: char) -> Option<Piece> {
     let color = if ch.is_ascii_uppercase() {
         Color::White
@@ -163,7 +212,7 @@ fn fen_char_to_piece(ch: char) -> Option<Piece> {
     Some(Piece { color, kind })
 }
 
-//helper for parsing the second FEN-field (strict parsing, don't accept uppercase)
+///helper for parsing the second FEN-field (strict parsing, don't accept uppercase)
 fn parse_active_color(field: &str) -> Result<Color, FenError> {
     match field {
         "w" => Ok(Color::White),
@@ -172,7 +221,11 @@ fn parse_active_color(field: &str) -> Result<Color, FenError> {
     }
 }
 
-//helper for parsing the third FEN-field (tolerant parsing, accept different ordering)
+///helper for parsing the third FEN-field (tolerant parsing, accept different ordering)
+///rejects:
+/// -duplicates (like "KK")
+/// -any unknown character
+/// -"-" mixed with other characters
 fn parse_castling(field: &str) -> Result<u8, FenError> {
     if field == "-" {
         return Ok(0);
@@ -203,6 +256,12 @@ fn parse_castling(field: &str) -> Result<u8, FenError> {
     Ok(rights)
 }
 
+///parses the en-passant target field (fourth FEN field)
+///accepts "-" as "None", otherwise expects a valid UCI square
+///validation rules:
+/// -rank must be 3 or 6
+/// -rank 3 implies Black to move, rank 6 White to move
+/// -square must be a valid on-board square
 fn parse_en_passant(field: &str, player_to_move: Color) -> Result<Option<Square>, FenError> {
     if field == "-" {
         return Ok(None);
@@ -235,6 +294,7 @@ fn parse_en_passant(field: &str, player_to_move: Color) -> Result<Option<Square>
     Ok(Some(Square::new(square120 as u8)))
 }
 
+///parses the halfmove clock (fifth FEN field)
 fn parse_halfmove_clock(field: &str) -> Result<u16, FenError> {
     let parsed = field.parse::<u16>();
 
@@ -244,6 +304,8 @@ fn parse_halfmove_clock(field: &str) -> Result<u16, FenError> {
     }
 }
 
+///parses the fullmove counter (sixth FEN field)
+///the value must be >=1 according to FEN specification
 fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
     let parsed = field.parse::<u16>();
 
@@ -261,6 +323,7 @@ fn parse_fullmove_counter(field: &str) -> Result<u16, FenError> {
 
 //helpers for to_fen()
 
+///encodes the board into the piece placement FEN field (ranks 8 to 1)
 fn piece_placement_to_string(pos: &Position) -> String {
     let mut ranks: Vec<String> = Vec::with_capacity(8);
 
@@ -271,7 +334,8 @@ fn piece_placement_to_string(pos: &Position) -> String {
     ranks.join("/")
 }
 
-//use as helper for piece_placement_to_string, for each specific rank
+///encodes a single rank into FEN form by compressing consecutive empty squares into digits
+///use as helper for piece_placement_to_string, for each specific rank
 fn encode_rank(pos: &Position, rank: usize) -> String {
     let mut output_string = String::new();
     let mut empty_squares: u8 = 0;
@@ -306,6 +370,7 @@ fn encode_rank(pos: &Position, rank: usize) -> String {
 
 //use as helper for encode_rank()
 //since we changed Piece in position.rs, our piece_to_char() in conversion.rs is of no use now
+///converts a [`Piece`] to its FEN character representation
 fn piece_to_fen_char(piece: Piece) -> char {
     let piece_char = match piece.kind {
         PieceKind::Pawn => 'p',
@@ -329,6 +394,7 @@ fn active_color_to_string(color: Color) -> &'static str {
     }
 }
 
+///encodes castling rights into canonical FEN order (strict encoding, not strict parsin)
 fn castling_to_string(rights: u8) -> String {
     if rights == 0 {
         return "-".to_string();
@@ -361,6 +427,10 @@ fn en_passant_to_string(ep_target: Option<Square>) -> String {
 
 #[cfg(test)]
 mod tests {
+    //! unit tests for FEN parsing/encoding and field leval validation
+    //! # note: the FEN strings in these tests were created using a LLM (either using the standard starting FEN or a original one)
+    //!         also, the inspiration for a number of test cases which should be covered by a stable fen parser/encoder was helped by asking an LLM
+    //!         and often, LLM was used to double-check if I created the correct setup (consistent with the used FEN string or FEN-field, or board square)
     use super::*;
     use crate::board::mailbox120::square120_from_file_rank;
 
@@ -704,6 +774,7 @@ mod tests {
         assert_eq!(encode_rank(&pos, 7), "8");
     }
 
+    #[test]
     fn encode_rank_startposition_rank8_is_correct() {
         let pos = Position::starting_position();
         assert_eq!(encode_rank(&pos, 7), "rnbqkbnr");
