@@ -62,20 +62,30 @@ This section features the outlined MVP version of the project, where the user ca
 Both binaries apply the same game logic via the shared "terminal_common", however we use different position-evaluators.
 The testing of the evaluators can be done as a comparison via lichess
 
-Listed commands to run the MVP (classical evaluator) in the terminal:
+Listed commands to run the default-run MVP (classical evaluator) in the terminal:
+cargo run
+cargo run --release
+![Successful run of debug-classical evaluator](images/classical/success_run_in_terminal.jpg)
+
+
+
+You can also run the classical evaluator binary with more explicit commands (if default-run changes):
 
 # default (debug)
 cargo run --bin terminal_proto_classical
-![Successful run of debug-classical evaluator](images/classical/success_run_in_terminal.jpg)
 
 # faster (release)
 cargo run --release --bin terminal_proto_classical
-Optionally use the explicit rust stable 1.85.8 version: cargo +1.85.0 run --release --bin terminal_proto_classical
-
-
+Optionally use the explicit rust stable 1.85.8 version:
+cargo +1.85.0 run --release --bin terminal_proto_classical
 
 Listed commands to run the MVP (neural evaluator) in the termninal:
 
+# default (debug)
+cargo run --bin terminal_proto_neural --features nn
+
+# faster (release)
+cargo run --release --bin terminal_proto_neural --features nn
 
 
 
