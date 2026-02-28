@@ -1,3 +1,6 @@
+//! This modul is responsible for all the gamestatus conditions: 
+//! checkmate, draw, stalemate
+
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;
 use crate::movegen::Move;
 use crate::movegen::attack::is_in_check;
@@ -5,6 +8,7 @@ use crate::movegen::legal_move_filter::filter_legal_moves;
 use crate::movegen::pseudo_legal_movegen::generate_pseudo_legal_moves;
 use crate::position::{Color, GameState, PieceKind, Position};
 
+/// Status of the chessgame.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum GameStatus {
     Ongoing,
@@ -15,6 +19,8 @@ pub enum GameStatus {
     Draw50Moves,
 }
 
+/// A playable game wrapper around [`Position`].
+/// Contains [`GameState`] and [`GameStatus`].
 pub struct Game {
     position: Position,
     gamestate: GameState,
@@ -22,6 +28,7 @@ pub struct Game {
 }
 
 impl Game {
+    /// Creates a new game with the standart starting position.
     pub fn new() -> Self {
         let position = Position::starting_position();
         let mut gamestate = GameState::new();
@@ -33,20 +40,34 @@ impl Game {
             gamestatus: GameStatus::Ongoing,
         }
     }
+
+    /// Returns an immutable reference to [`Position`].
     pub fn position(&self) -> &Position {
         &self.position
     }
+
+    /// Returns a mutable reference to[`Position`].
     pub fn position_mut(&mut self) -> &mut Position {
         &mut self.position
     }
+
+    /// Returns the current computed [`GameStatus`].
     pub fn status(&self) -> GameStatus {
         self.gamestatus
     }
+
+    /// Returns an immutable reference to [`GameState`].
     pub fn gamestate(&self) -> &GameState {
         &self.gamestate
     }
 
-    //checks all draw and checkmate options
+    /// Computes the current [`GameStatus`].
+    /// Order matters! It checks:
+    /// 1) checkmate (no legal move and king in check) / stalemate (no legal moves and king not in check),
+    /// 2) insufficient material,
+    /// 3) repetition,
+    /// 4) 50-move rule,
+    /// otherwise ongoing.
     fn compute_status(&self) -> GameStatus {
         self.check_checkmate_or_stalemate()
             .or_else(|| self.check_draw_insufficient_material())
@@ -55,6 +76,7 @@ impl Game {
             .unwrap_or(GameStatus::Ongoing)
     }
 
+    /// Applies a move to the game, if the game is still ongoing.
     pub fn try_play_move(&mut self, mv: Move) {
         if self.gamestatus != GameStatus::Ongoing {
             return;
@@ -77,8 +99,8 @@ impl Game {
         true
     }
 
-    // half_move_clock has to reset when a piece is captured
-    // or a pawn is moved
+    /// Checks 50-move rule.
+    /// half_move_clock counts half moves, after 100 half moves players can claim a draw.
     fn check_draw_50_moves(&self) -> Option<GameStatus> {
         if self.position.half_move_clock >= 100 {
             return Some(GameStatus::Draw50Moves);
@@ -86,6 +108,9 @@ impl Game {
         None
     }
 
+    /// Checks for draw by insufficient material.
+    /// The rule is implemented by matching against a small set of piece-count patterns.
+    /// The tricky case is KB vs KB: it is only insufficient if both bishops are on the same-colored squares.
     fn check_draw_insufficient_material(&self) -> Option<GameStatus> {
         const INSUFFICIENT: [[u8; 12]; 7] = [
             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1], // WK - BK
@@ -113,7 +138,8 @@ impl Game {
         None
     }
 
-    // returns true if white and black bishop have the same square color
+    /// Returns `true` if white and black bishops are on the same-colored squares.
+    /// This is used for the KB vs KB insufficient material special case.
     fn bishops_same_color(&self) -> bool {
         if let (Some(wb), Some(bb)) = (
             self.position
@@ -128,8 +154,8 @@ impl Game {
         false
     }
 
-    // checks via zobrist hash if a position occured 3 or more times.
-    // If so, the function returns a draw through repetition.
+    /// Checks via Zobrist hash whether the current position occurred 3+ times.
+    /// This results to the threefold repetition draw condition.
     fn check_draw_repetition(&self) -> Option<GameStatus> {
         let current = self.position.zobrist;
         let count = self
@@ -144,6 +170,10 @@ impl Game {
         None
     }
 
+    /// Checks for checkmate or stalemate.
+    /// We generate pseudo-legal moves and filter them into legal moves. If there are no legal moves:
+    /// king is in check: checkmate,
+    /// king is not in check: stalemate.
     fn check_checkmate_or_stalemate(&self) -> Option<GameStatus> {
         let side = self.position.player_to_move;
         let check = is_in_check(&self.position, side);
@@ -161,7 +191,8 @@ impl Game {
         }
     }
 
-    // Helperfunction
+    /// Computes the color (light/dark) of a 0..63 square board.
+    /// Result is either 0 or 1.
     fn square_color(sq64: i8) -> i8 {
         let file = sq64 % 8;
         let rank = sq64 / 8;
