@@ -5,15 +5,15 @@
 //then decode the fen from the data into NNUE readable format(done in the load_dataset logic by calling decode_fen)
 //then initialize and load the MLP model and give it the parameters
 //then also load the previous checkpoint? if there is one
-//then call the training loop 
+//then call the training loop
 
 use burn::backend::{Autodiff, NdArray}; //both wgpu and ndarray loaded trained on both will remove wgpu in final version after done with training
 use burn::module::Module;
 use std::sync::Arc;
 
+use crate::nn_model::mlp_structure::MLP;
 use crate::trainer_rust::config::{MODEL_PATH_4, POSITIONS_PATH};
 use crate::trainer_rust::dataset::{ChessDataset, create_valid_dataloader, load_dataset};
-use crate::nn_model::mlp_structure::MLP;
 use crate::trainer_rust::train::train;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
@@ -52,7 +52,3 @@ pub fn main() {
 
     println!("Finished!");
 }
-
-
-
-

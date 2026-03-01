@@ -1,5 +1,5 @@
 //Perft
-use crate::movegen::{is_in_check, generate_pseudo_legal_moves_in_place, Move};
+use crate::movegen::{Move, generate_pseudo_legal_moves_in_place, is_in_check};
 use crate::position::Position;
 
 pub fn perft(position: &Position, depth: u32) -> u64 {
@@ -25,7 +25,7 @@ pub fn perft_mut(pos: &mut Position, depth: u32, buf: &mut Vec<Move>) -> u64 {
         let undo = pos.make_move_with_undo(mv);
 
         if !is_in_check(pos, side_to_move) {
-            nodes += perft_mut(pos, depth -1, buf);
+            nodes += perft_mut(pos, depth - 1, buf);
         }
 
         pos.undo_move(undo);
@@ -80,7 +80,10 @@ mod tests {
     #[test]
     #[ignore]
     fn kiwipete_depth_four() {
-        let pos = Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap();
+        let pos = Position::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        )
+        .unwrap();
         assert_eq!(perft(&pos, 4), 4_085_603);
     }
 }

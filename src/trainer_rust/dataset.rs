@@ -158,7 +158,7 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
             let mate_label = if mate > 0.0 {
                 10_000.0 - (mate * 10.0)
             } else {
-                 -10_000.0 - (mate * 10.0)
+                -10_000.0 - (mate * 10.0)
             };
             label = (mate_label / scale).tanh();
         }
@@ -176,7 +176,6 @@ pub fn load_dataset(path: &str, batch_size: usize) -> ChessDataset {
     let mut samples_vec: Vec<([f32; 781], f32)> =
         positions_x.into_iter().zip(evals_y.into_iter()).collect();
 
-    
     samples_vec.shuffle(&mut rng);
 
     let (positions_x_rndm, evals_y_rndm) = samples_vec.into_iter().unzip();

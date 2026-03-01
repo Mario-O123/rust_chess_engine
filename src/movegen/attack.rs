@@ -17,7 +17,9 @@ pub fn is_square_attacked(position: &Position, square: Square, by_color: Color) 
     debug_assert!(
         is_on_board(square120),
         "is_square_attacked: square120={} offboard, by_color={:?}, fen={}",
-        square120, by_color, position.to_fen()
+        square120,
+        by_color,
+        position.to_fen()
     );
     if !is_on_board(square120) {
         return false;
@@ -35,13 +37,16 @@ pub fn is_in_check(position: &Position, color: Color) -> bool {
     debug_assert!(
         is_on_board(cached_king_sq120),
         "cached_king_sq120 invalid: color={:?}, cached_king_sq120={}, fen={}",
-        color, cached_king_sq120, position.to_fen()
+        color,
+        cached_king_sq120,
+        position.to_fen()
     );
 
     //release fallback
     let king_sq120 = if is_on_board(cached_king_sq120) {
         cached_king_sq120
-    } else { //search king directly on board if cache is broken
+    } else {
+        //search king directly on board if cache is broken
         find_king(position, color).expect("king missing on board")
     };
 
@@ -478,7 +483,7 @@ mod tests {
 
         let e8 = sq(4, 7);
         let e1 = sq(4, 0);
-        let a1 = sq(0, 0); 
+        let a1 = sq(0, 0);
 
         put(&mut pos, e8, Color::Black, PieceKind::King);
         put(&mut pos, e1, Color::White, PieceKind::Rook);
@@ -525,7 +530,7 @@ mod tests {
     /// -making and undoing that move does not leave the position in an invalid state
     #[test]
     fn regression_no_king_cache_offboard_after_sequence() {
-        use crate::movegen::{generate_legal_moves_in_place, Move};
+        use crate::movegen::{Move, generate_legal_moves_in_place};
 
         //position short before error
         let fen = "r1bqkbnr/1ppp1p1p/8/p3n2p/2B1P3/2N5/PPP2PPP/R1B1K1NR w KQkq - 0 7";
@@ -536,7 +541,10 @@ mod tests {
 
         //h2h3 should be legal
         let h2h3 = Move::from_uci("h2h3").unwrap();
-        assert!(buf.iter().any(|m| *m == h2h3), "h2h3 not found in legal moves");
+        assert!(
+            buf.iter().any(|m| *m == h2h3),
+            "h2h3 not found in legal moves"
+        );
 
         let undo = pos.make_move_with_undo(h2h3);
         pos.undo_move(undo);

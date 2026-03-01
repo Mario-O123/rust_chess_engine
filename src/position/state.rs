@@ -2,7 +2,6 @@
 //! modules provides lightweight [`State`] snapshots of [`Position`] and [`GameState`]
 //! container that tracks position history plus an undo stack
 
-
 use crate::board::mailbox120::BOARD_SIZE as BOARD120;
 use crate::movegen::Move;
 use crate::position::{Cell, Color, Piece, Position, Square};
@@ -43,7 +42,7 @@ impl State {
 }
 
 ///stores game history and undo information
-/// 
+///
 #[derive(Debug, Default)]
 pub struct GameState {
     pub history: Vec<State>,

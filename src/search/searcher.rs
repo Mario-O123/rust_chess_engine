@@ -1,11 +1,9 @@
 use std::time::Instant;
 
-use crate::evaluation::Evaluator;
-use crate::movegen::{
-    Move, generate_pseudo_legal_moves_in_place, is_in_check,
-};
-use crate::position::{Cell, Color, PieceKind, Position};
 use super::tt::{Bound, TranspositionTable};
+use crate::evaluation::Evaluator;
+use crate::movegen::{Move, generate_pseudo_legal_moves_in_place, is_in_check};
+use crate::position::{Cell, Color, PieceKind, Position};
 
 const INF: i32 = 50000;
 const MATE: i32 = 30_000;
@@ -125,14 +123,17 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
-    
     fn root(&mut self, pos: &mut Position, depth: i32) -> (Move, i32, bool) {
         const TT_BONUS: i32 = 1_000_000;
-        
+
         let side_to_move = pos.player_to_move;
         let root_key = pos.zobrist;
 
-        let tt_best = self.tt.probe(root_key).map(|e| e.best).unwrap_or(Move::NULL);
+        let tt_best = self
+            .tt
+            .probe(root_key)
+            .map(|e| e.best)
+            .unwrap_or(Move::NULL);
 
         self.move_buf.clear();
         generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
@@ -140,7 +141,13 @@ impl<E: Evaluator> Searcher<E> {
 
         if self.move_buf.is_empty() {
             let sc = self.terminal_score(pos, 0);
-            self.tt.store(root_key, depth, Self::to_tt_score(sc, 0), Bound::Exact, Move::NULL);
+            self.tt.store(
+                root_key,
+                depth,
+                Self::to_tt_score(sc, 0),
+                Bound::Exact,
+                Move::NULL,
+            );
             return (Move::NULL, sc, complete);
         }
 
@@ -209,20 +216,31 @@ impl<E: Evaluator> Searcher<E> {
         if !any_legal {
             let sc = self.terminal_score(pos, 0);
             if complete {
-                self.tt.store(root_key, depth, Self::to_tt_score(sc, 0), Bound::Exact, Move::NULL);
+                self.tt.store(
+                    root_key,
+                    depth,
+                    Self::to_tt_score(sc, 0),
+                    Bound::Exact,
+                    Move::NULL,
+                );
             }
-            return  (Move::NULL, sc, complete);
+            return (Move::NULL, sc, complete);
         }
 
         //root is an exact result if complete
         if complete {
-            self.tt.store(root_key, depth, Self::to_tt_score(alpha, 0), Bound::Exact, best_mv);   
+            self.tt.store(
+                root_key,
+                depth,
+                Self::to_tt_score(alpha, 0),
+                Bound::Exact,
+                best_mv,
+            );
         }
 
         (best_mv, alpha, complete)
     }
 
-    
     fn negamax(
         &mut self,
         pos: &mut Position,
@@ -287,7 +305,13 @@ impl<E: Evaluator> Searcher<E> {
         if self.move_buf.is_empty() {
             let s = self.terminal_score(pos, ply);
 
-            self.tt.store(key, depth, Self::to_tt_score(s, ply), Bound::Exact, Move::NULL);
+            self.tt.store(
+                key,
+                depth,
+                Self::to_tt_score(s, ply),
+                Bound::Exact,
+                Move::NULL,
+            );
             return s;
         }
 
@@ -295,9 +319,10 @@ impl<E: Evaluator> Searcher<E> {
             .move_buf
             .iter()
             .map(|&m| {
-                let tt_bonus = if m == tt_best { 1_000_000 } else {0 };
+                let tt_bonus = if m == tt_best { 1_000_000 } else { 0 };
                 (m, Self::move_order_score(pos, m) + tt_bonus)
-            }).collect();
+            })
+            .collect();
 
         scored_moves.sort_by_key(|&(_, score)| -score);
 
@@ -337,7 +362,13 @@ impl<E: Evaluator> Searcher<E> {
 
         if !any_legal {
             let s = self.terminal_score(pos, ply);
-            self.tt.store(key, depth, Self::to_tt_score(s, ply), Bound::Exact, Move::NULL);
+            self.tt.store(
+                key,
+                depth,
+                Self::to_tt_score(s, ply),
+                Bound::Exact,
+                Move::NULL,
+            );
             return s;
         }
         //TT store (only if not aborted by time/nodes)
@@ -349,12 +380,12 @@ impl<E: Evaluator> Searcher<E> {
             } else {
                 Bound::Exact
             };
-            self.tt.store(key, depth, Self::to_tt_score(alpha, ply), bound, best_mv);
+            self.tt
+                .store(key, depth, Self::to_tt_score(alpha, ply), bound, best_mv);
         }
         alpha
     }
 
-    
     fn quiescence(&mut self, pos: &mut Position, ply: i32, mut alpha: i32, beta: i32) -> i32 {
         self.nodes += 1;
         if self.should_stop() {
@@ -408,7 +439,6 @@ impl<E: Evaluator> Searcher<E> {
                 if alpha >= beta {
                     return beta;
                 }
-                
             }
 
             if !any_legal {
@@ -427,7 +457,7 @@ impl<E: Evaluator> Searcher<E> {
         }
         self.move_buf.clear();
         generate_pseudo_legal_moves_in_place(pos, &mut self.move_buf);
-        
+
         let mut scored_moves: Vec<(Move, i32)> = self
             .move_buf
             .iter()
@@ -465,7 +495,7 @@ impl<E: Evaluator> Searcher<E> {
             }
             if score > alpha {
                 alpha = score;
-            }   
+            }
         }
         alpha
     }
@@ -490,7 +520,7 @@ impl<E: Evaluator> Searcher<E> {
     fn is_mate_score(score: i32) -> bool {
         score.abs() >= MATE - 1000
     }
-     
+
     ///converts a search score into a TT-storable score
     ///why this exists:
     /// -inn the search, mates are typically represented as "MATE - ply" (or "-MATE + ply"),
@@ -515,7 +545,7 @@ impl<E: Evaluator> Searcher<E> {
 
     ///onverts a stored TT score back into the **current search ply representation.
     ///this is the inverse of [`Self::to_tt_score`]. After probing the TT, you want to
-    ///reconstruct the correct "mate distance from here" score: 
+    ///reconstruct the correct "mate distance from here" score:
     /// -positive mate: score = stored - ply
     /// -negative mate: score = stored + ply
     ///non-mate scores are returned unchanged.
@@ -622,14 +652,13 @@ impl<E: Evaluator> Searcher<E> {
     }
 }
 
-
 #[cfg(test)]
-//The tests were coded with the help of a LLM 
+//The tests were coded with the help of a LLM
 mod tests {
     use super::*;
     use crate::evaluation::classical::ClassicalEval;
-    use crate::position::Position;
     use crate::movegen::generate_legal_moves_in_place;
+    use crate::position::Position;
 
     // Test 1: Basic functionality
     #[test]
@@ -654,7 +683,7 @@ mod tests {
     // Test 2: Matt detection in 1 (Scholar's Mate Setup)
     #[test]
     fn test_finds_mate_in_one() {
-        // Position: White's turn can mate 
+        // Position: White's turn can mate
         let fen = "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
         let mut pos = Position::from_fen(fen).unwrap();
         let eval = ClassicalEval::new();
@@ -864,7 +893,7 @@ mod tests {
     }
 
     //test 12
-    
+
     #[test]
     fn test_detects_checkmate() {
         let fen = "6k1/5ppp/8/8/8/8/5PPP/4r1K1 w - - 0 1";
@@ -922,7 +951,11 @@ mod tests {
         let mut s_tt = Searcher::new(ClassicalEval::new());
         s_tt.tt = TranspositionTable::new_mb(8);
 
-        let limits = SearchLimits { max_depth: 4, max_nodes: None, max_time_ms: None };
+        let limits = SearchLimits {
+            max_depth: 4,
+            max_nodes: None,
+            max_time_ms: None,
+        };
 
         let r1 = s_no_tt.search(&mut pos_a, limits);
         let r2 = s_tt.search(&mut pos_b, limits);
@@ -936,11 +969,11 @@ mod tests {
 #[cfg(test)]
 mod mate_score_tests {
     //! tests for mate-score encoding/decoding used for transposition-table storage
-    //! 
+    //!
     //! mate scores are values close to +/-[`MATE`] and often include the mate distance in plies
     //! (eg. MATE - ply), when storing into the transposition table, we make them
     //! ply-neutral +/-[`MATE`], when loading, we adjust by the current ply again.
-    //! 
+    //!
     //! these tests verify:
     //! -normal (non-mate) scores roundtrip unchanged
     //! -positive/negative mate scores sroundtrip correctly via ply-neutral storage
@@ -985,7 +1018,7 @@ mod mate_score_tests {
     }
 
     ///negative mate score: store as -[`MATE`], then load back as MATE + ply
-     #[test]
+    #[test]
     fn tt_score_roundtrip_negative_mate_is_ply_neutral() {
         let ply = 6;
         let score = -MATE + ply;
@@ -998,7 +1031,6 @@ mod mate_score_tests {
         assert!(Searcher::<DummyEval>::is_mate_score(score));
     }
 
-
     #[test]
     fn is_mate_score_has_buffer_and_does_not_trigger_on_large_non_mate_scores() {
         let score = MATE - 1500;
@@ -1007,5 +1039,4 @@ mod mate_score_tests {
         let score2 = -MATE + 1500;
         assert!(!Searcher::<DummyEval>::is_mate_score(score2));
     }
-
 }

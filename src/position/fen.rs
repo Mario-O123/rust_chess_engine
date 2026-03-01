@@ -2,14 +2,14 @@
 //! this module implements conversion between a [`Position`] and a FEN string (Forsyth-Edwards Notation)
 //! FEN is the quickest way to describe/load a chess position without replaying a hwile game
 //! its often used as a test tool and a standard if the engine supports UCI
-//! 
+//!
 //! very basic description of parsing policy:
 //! -expects exactly 6 fields: piece placement (on the board), active color, castling, en-passant, halfmove clock, fullmove counter
 //! -active color accepts only w/b
 //! -castling rights accept any order but reject duplicates
 //! -en-passant is validated (must be rank 3 or 6 and consistent with side to move)
 //! -fullmove counter must be >=1
-//! 
+//!
 //! very basic description of encoding policy:
 //! -emit 6 fields
 //! -castling is written in canonical order KQkq or "-"
@@ -50,12 +50,12 @@ impl Position {
     /// 4) en-passant target square
     /// 5) halfmove clock
     /// 6) fullmove counter
-    /// 
+    ///
     ///on success, this also computes cached fields like:
     /// -king squares
     /// -piece counters
     /// -zobrist hash
-    /// 
+    ///
     ///returns [`FenError`] if any field is malformed or inconsistent
     pub fn from_fen(fen_string: &str) -> Result<Self, FenError> {
         let fields: Vec<&str> = fen_string.split_whitespace().collect();
@@ -98,7 +98,7 @@ impl Position {
     }
 
     ///encodes a [`Position`] to a canonical FEN string
-    /// 
+    ///
     ///canonicalization behavior:
     /// -castling rights are output in "KQkq" order or "-"
     /// -en-passant is output as UCI style like "e2" or "-"

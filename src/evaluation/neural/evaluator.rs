@@ -3,8 +3,8 @@
 
 use super::super::Evaluator;
 use crate::evaluation::neural::feature::decode_pos_nn;
-use crate::position::Position;
 use crate::nn_model::mlp_structure::MLP;
+use crate::position::Position;
 use burn::module::Module;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
@@ -19,7 +19,7 @@ pub struct NeuralEval<B: Backend> {
 impl<B: Backend> NeuralEval<B> {
     //loading our device recorder and model
     pub fn load(model_path: &str) -> anyhow::Result<Self> {
-        //type B = NdArrayDevice;//(CPU) defined in mod.rs 
+        //type B = NdArrayDevice;//(CPU) defined in mod.rs
         let device = B::Device::default();
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
         let mut model: MLP<B> = MLP::<B>::new(781, 256, 64, &device);
@@ -40,9 +40,9 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
     //the pass into our mlp which returns a score
     fn evaluate(&mut self, position: &Position) -> i32 {
         let input = self.encode(position);
-        
+
         let prediction = self.model.forward(input);
-        
+
         let score: f32 = prediction.to_data().to_vec::<f32>().unwrap()[0];
 
         if score >= 1.2 {
@@ -51,7 +51,7 @@ impl<B: Backend> Evaluator for NeuralEval<B> {
         if score <= -1.2 {
             return -30_000;
         }
-        let s = score.clamp(-1.0 , 1.0);
+        let s = score.clamp(-1.0, 1.0);
         let cp_score: f32 = 600.0 * s.atanh(); //.atanh();
         return cp_score.clamp(-30_000.0, 30_000.0) as i32;
     }

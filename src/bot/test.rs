@@ -37,7 +37,6 @@ done
 
         let temp_dir = std::env::temp_dir();
 
-        
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -106,7 +105,7 @@ done
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        // Check Vars 
+        // Check Vars
         assert!(
             std::env::var("MOVETIME_MS").is_err(),
             "MOVETIME_MS should be unset"

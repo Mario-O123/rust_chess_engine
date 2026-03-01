@@ -96,17 +96,17 @@ impl ClassicalEval {
     }
 }
 
- /// Evaluates a position in centipawns.
-    ///
-    /// Scoring rules:
-    /// - Material + PST values are accumulated.
-    /// - White contributions are added, Black contributions are subtracted.
-    /// - Bishop pair bonus applied.
-    /// - King PST blended based on remaining material.
-    /// - Small tempo bonus for side to move.
-    ///
-    /// Positive score: White is better.
-    /// Negative score: Black is better.
+/// Evaluates a position in centipawns.
+///
+/// Scoring rules:
+/// - Material + PST values are accumulated.
+/// - White contributions are added, Black contributions are subtracted.
+/// - Bishop pair bonus applied.
+/// - King PST blended based on remaining material.
+/// - Small tempo bonus for side to move.
+///
+/// Positive score: White is better.
+/// Negative score: Black is better.
 impl Evaluator for ClassicalEval {
     fn evaluate(&mut self, pos: &Position) -> i32 {
         let mut score = 0;
