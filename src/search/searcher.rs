@@ -479,18 +479,17 @@ impl<E: Evaluator> Searcher<E> {
         }
     }
 
-
-    ///retunrns true if score represents a mate core
+    ///returns true if score represents a mate core
     ///the engine uses a large constant [`MATE`]
     ///mate scores are encoded near +MATE / - MATE, often with a ply offset (eg. MATE-ply)
     ///to prefer faster mates
     ///
     /// We intentionally keep a safety buffer (`MATE - 1000`) so that very large non-mate
     /// evaluation scores are not accidentally treated as mate scores.
+    #[cfg(test)]
     fn is_mate_score(score: i32) -> bool {
         score.abs() >= MATE - 1000
     }
-
      
     ///converts a search score into a TT-storable score
     ///why this exists:
@@ -951,7 +950,7 @@ mod mate_score_tests {
     ///only needed as a searcher type parameter in these tests
     struct DummyEval;
     impl Evaluator for DummyEval {
-        fn evaluate(&mut self, pos: &Position) -> i32 {
+        fn evaluate(&mut self, _pos: &Position) -> i32 {
             0
         }
     }
