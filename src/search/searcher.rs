@@ -907,7 +907,8 @@ mod tests {
         }
     }
 
-    //the FEN string in this test was created with the help of a LLM
+    ///following are tests by Mario-O123
+    ///the FEN string in this test was created with the help of a LLM
     #[test]
     fn test_tt_does_not_change_result_fixed_depth() {
         use crate::search::tt::TranspositionTable;
@@ -935,8 +936,19 @@ mod tests {
 
 #[cfg(test)]
 mod mate_score_tests {
+    //! tests for mate-score encoding/decoding used for transposition-table storage
+    //! 
+    //! mate scores are values close to +/-[`MATE`] and often include the mate distance in plies
+    //! (eg. MATE - ply), when storing into the transposition table, we make them
+    //! ply-neutral +/-[`MATE`], when loading, we adjust by the current ply again.
+    //! 
+    //! these tests verify:
+    //! -normal (non-mate) scores roundtrip unchanged
+    //! -positive/negative mate scores sroundtrip correctly via ply-neutral storage
+    //! -is_mate_score has a safety buffer and doesnt trigger on large but non-mate scores
     use super::*;
 
+    ///only needed as a searcher type parameter in these tests
     struct DummyEval;
     impl Evaluator for DummyEval {
         fn evaluate(&mut self, pos: &Position) -> i32 {
@@ -944,6 +956,8 @@ mod mate_score_tests {
         }
     }
 
+    ///non-mate scores must not be transformed during TT encoding/decoding
+    ///check:
     #[test]
     fn tt_score_roundtrip_non_mate_is_unchanged() {
         let ply = 7;
@@ -957,6 +971,7 @@ mod mate_score_tests {
         assert!(!Searcher::<DummyEval>::is_mate_score(score));
     }
 
+    ///positive mate score: store as [`MATE`], then load back as MATE - ply
     #[test]
     fn tt_score_roundtrip_positive_mate_is_ply_neutral() {
         let ply = 9;
@@ -970,6 +985,7 @@ mod mate_score_tests {
         assert!(Searcher::<DummyEval>::is_mate_score(score));
     }
 
+    ///negative mate score: store as -[`MATE`], then load back as MATE + ply
      #[test]
     fn tt_score_roundtrip_negative_mate_is_ply_neutral() {
         let ply = 6;
@@ -982,6 +998,7 @@ mod mate_score_tests {
         assert_eq!(loaded, score);
         assert!(Searcher::<DummyEval>::is_mate_score(score));
     }
+
 
     #[test]
     fn is_mate_score_has_buffer_and_does_not_trigger_on_large_non_mate_scores() {
