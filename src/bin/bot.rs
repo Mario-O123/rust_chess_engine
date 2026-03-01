@@ -16,7 +16,6 @@
 //! Run example:
 //! cargo run --release --bin bot
 
-
 use anyhow::Result;
 
 use rust_chess_engine::bot::{BotConfig, LichessBot};
@@ -27,7 +26,7 @@ use rust_chess_engine::bot::{BotConfig, LichessBot};
 /// 1. Load environment variables (via `.env`).
 /// 2. Parse configuration using `BotConfig::from_env`.
 /// 3. Initialize the `LichessBot`.
-/// 4. Start the bot event loop (`run`). 
+/// 4. Start the bot event loop (`run`).
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Starting Lichess Bot...");
@@ -42,7 +41,7 @@ async fn main() -> Result<()> {
 
     // Initialize bot (connects to Lichess and starts engine).
     let mut bot = LichessBot::new(config).await?;
-    
+
     // Starts main bot loop to handle events and play games.
     bot.run().await?;
 

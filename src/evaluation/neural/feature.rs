@@ -58,9 +58,8 @@ pub fn decode_pos_nn(position: &Position) -> [f32; 781] {
         let square_index = position.en_passant_square.unwrap().as_usize();
         let square_index_64 = SQUARE120_TO_SQUARE64[square_index];
         if square_index_64 >= 0 {
-            features[773 + ((square_index_64 % 8) as usize)] = 1.0;    
+            features[773 + ((square_index_64 % 8) as usize)] = 1.0;
         }
-        
     }
 
     return features;
@@ -95,7 +94,7 @@ fn decode_pos_pieces(piece: &Piece) -> Option<usize> {
 mod nn_alignment_tests {
     use super::decode_pos_nn;
     use crate::position::Position;
-    
+
     use crate::trainer_rust::decode_fen::decode_data;
 
     ///Returns all indices set to 1 in a given 64-square piece plane
@@ -129,7 +128,10 @@ mod nn_alignment_tests {
         }
 
         //Compare remaining neurons (player to move, castling, en passant)
-        assert_eq!(&feat_engine[768..], &feat_trainer[768..], "Non-piece features mismatch");
+        assert_eq!(
+            &feat_engine[768..],
+            &feat_trainer[768..],
+            "Non-piece features mismatch"
+        );
     }
-
 }

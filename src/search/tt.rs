@@ -36,11 +36,11 @@ pub struct TTEntry {
 impl Default for TTEntry {
     fn default() -> Self {
         Self {
-        key: 0,
-        depth: -1,
-        score: 0,
-        bound: Bound::Exact,
-        best: Move::NULL,
+            key: 0,
+            depth: -1,
+            score: 0,
+            bound: Bound::Exact,
+            best: Move::NULL,
         }
     }
 }
@@ -49,7 +49,6 @@ pub struct TranspositionTable {
     entries: Vec<TTEntry>,
     mask: usize,
 }
-
 
 impl TranspositionTable {
     ///returns a disabled TT
@@ -76,7 +75,7 @@ impl TranspositionTable {
 
         Self {
             entries: vec![TTEntry::default(); entry_count_pow2],
-            mask: entry_count_pow2 -1,
+            mask: entry_count_pow2 - 1,
         }
     }
 
@@ -106,30 +105,29 @@ impl TranspositionTable {
     /// -replace if same key and the new depth is >= the stored depth
     /// -replace if different key and the new depth is strictly deeper than what's in the slot
     pub fn store(&mut self, key: u64, depth: i32, score: i32, bound: Bound, best: Move) {
-     if self.entries.is_empty() {
-        return;
-     }
-     let slot_idx = self.idx(key);
-     let existing_entry = self.entries[slot_idx];
+        if self.entries.is_empty() {
+            return;
+        }
+        let slot_idx = self.idx(key);
+        let existing_entry = self.entries[slot_idx];
 
-     let stored_depth = depth.clamp(0, i16::MAX as i32) as i16;
+        let stored_depth = depth.clamp(0, i16::MAX as i32) as i16;
 
-     let should_replace = existing_entry.depth < 0
-        || (existing_entry.key == key && stored_depth >= existing_entry.depth)
-        || (existing_entry.key != key && stored_depth > existing_entry.depth);
+        let should_replace = existing_entry.depth < 0
+            || (existing_entry.key == key && stored_depth >= existing_entry.depth)
+            || (existing_entry.key != key && stored_depth > existing_entry.depth);
 
-     if should_replace {
-        self.entries[slot_idx] = TTEntry {
-            key,
-            depth: stored_depth,
-            score,
-            bound,
-            best,
-        };
-     }   
+        if should_replace {
+            self.entries[slot_idx] = TTEntry {
+                key,
+                depth: stored_depth,
+                score,
+                bound,
+                best,
+            };
+        }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -209,7 +207,3 @@ mod tests {
         assert_eq!(e2.depth, i16::MAX);
     }
 }
-
-
-
-

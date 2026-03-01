@@ -1,7 +1,6 @@
 //! Board representation, position state, zobrist hashing and make move logic
-//! Uses a 10x12 "mailbox120" board 
+//! Uses a 10x12 "mailbox120" board
 //! Squares are encoded as indices `0..=119`, where the playable 8x8 area starts at `A1 = 21`.
-
 
 use super::state::Undo;
 pub use crate::board::mailbox120::BOARD_SIZE as BOARD120;
@@ -155,7 +154,7 @@ impl Zobrist {
 /// Global zobrist key. Blocks Memory for Zobrist; init_zobrist is called, when needed.
 pub static ZOBRIST: Lazy<Zobrist> = Lazy::new(Zobrist::init_zobrist);
 
-/// castling_rights with bitmasks: 
+/// castling_rights with bitmasks:
 /// White 0-0 (0b0001), White 0-0-0 (0b0010),
 /// Black 0-0 (0b0100), Black 0-0-0 (0b1000)
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -490,11 +489,17 @@ impl Position {
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
                         //fallback prohibits a half turn in release build
-                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                        Piece {
+                            color: moving_piece.color,
+                            kind: PieceKind::Rook,
+                        }
                     }
                 };
 
-                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+                debug_assert!(
+                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
+                    "castling: wrong rook on rook_from"
+                );
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);
@@ -510,11 +515,17 @@ impl Position {
                     Cell::Piece(p) => p,
                     _ => {
                         debug_assert!(false, "castling: rook missing on rook_from");
-                        Piece {color: moving_piece.color, kind: PieceKind::Rook}
+                        Piece {
+                            color: moving_piece.color,
+                            kind: PieceKind::Rook,
+                        }
                     }
                 };
 
-                debug_assert!(rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color, "castling: wrong rook on rook_from");
+                debug_assert!(
+                    rook_piece.kind == PieceKind::Rook && rook_piece.color == moving_piece.color,
+                    "castling: wrong rook on rook_from"
+                );
 
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_from);
                 self.zobrist ^= Self::zob_piece(rook_piece, rook_to);

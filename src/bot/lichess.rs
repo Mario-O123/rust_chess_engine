@@ -6,7 +6,6 @@
 //! - Lichess streams are NDJSON (one JSON object per line).
 //! This file was coded with the help of a LLM
 
-
 use super::{BotConfig, UciEngineHandle};
 use crate::position::{Color, Position};
 use anyhow::Result;
@@ -39,7 +38,7 @@ struct ChallengeInfo {
     id: String,
 }
 
-/// Full game snapshot sent as the first line of a game stream 
+/// Full game snapshot sent as the first line of a game stream
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct GameFull {
@@ -64,14 +63,14 @@ struct User {
     id: String,
 }
 
-// returns the lichess user id for a player 
+// returns the lichess user id for a player
 fn player_id(p: &Player) -> Option<&str> {
     p.id.as_deref()
         .or_else(|| p.user.as_ref().map(|u| u.id.as_str()))
 }
 
 /// Game update from the game stream
-/// Contains the current move list in UCI notation 
+/// Contains the current move list in UCI notation
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct GameState {
@@ -94,7 +93,7 @@ pub struct LichessBot {
     bot_id: String,
 }
 
- /// Creates a new bot instance and authenticates against Lichess
+/// Creates a new bot instance and authenticates against Lichess
 impl LichessBot {
     pub async fn new(config: BotConfig) -> Result<Self> {
         // Create client with User-Agent (required by Lichess)
@@ -187,7 +186,7 @@ impl LichessBot {
         Ok(())
     }
 
-      /// Accepts a challenge by id
+    /// Accepts a challenge by id
     async fn accept_challenge(&self, challenge_id: &str) -> Result<()> {
         let url = format!("https://lichess.org/api/challenge/{}/accept", challenge_id);
 
@@ -242,7 +241,6 @@ impl LichessBot {
             let chunk = chunk?;
             buf.push_str(&String::from_utf8_lossy(&chunk));
 
-        
             while let Some(nl) = buf.find('\n') {
                 let line = buf[..nl].trim().to_string();
                 buf.drain(..nl + 1);
@@ -399,24 +397,27 @@ impl LichessBot {
 
     /// Sends a move to Lichess in UCI notation
     async fn make_move(&self, game_id: &str, mv: &str) -> Result<()> {
-    let url = format!("https://lichess.org/api/bot/game/{}/move/{}", game_id, mv);
+        let url = format!("https://lichess.org/api/bot/game/{}/move/{}", game_id, mv);
 
-    let response = self
-        .client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", self.config.lichess_token))
-        .send()
-        .await?;
+        let response = self
+            .client
+            .post(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.config.lichess_token),
+            )
+            .send()
+            .await?;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(anyhow::anyhow!("move failed: {} {}", status, body));
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!("move failed: {} {}", status, body));
+        }
+
+        println!("Played: {}", mv);
+        Ok(())
     }
-
-    println!("Played: {}", mv);
-    Ok(())
-}
 }
 
 impl std::fmt::Debug for LichessBot {

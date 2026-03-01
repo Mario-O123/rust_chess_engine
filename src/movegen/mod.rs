@@ -21,7 +21,7 @@ fn is_capture(position: &Position, mv: Move) -> bool {
     mv.is_en_passant() || matches!(position.board[mv.to_sq()], Cell::Piece(_))
 }
 
-//generates legal moves list 
+//generates legal moves list
 pub fn generate_legal_moves_in_place(pos: &mut Position, out: &mut Vec<Move>) {
     out.clear();
     let stm = pos.player_to_move;

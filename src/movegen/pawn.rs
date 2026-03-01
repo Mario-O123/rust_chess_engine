@@ -153,11 +153,7 @@ pub fn gen_pawn_moves(position: &Position, moves: &mut Vec<Move>, square: usize)
     }
 }
 
-pub fn en_passant_moves(
-    position: &Position,
-    moves: &mut Vec<Move>,
-    square: usize, 
-) {
+pub fn en_passant_moves(position: &Position, moves: &mut Vec<Move>, square: usize) {
     if let Some(en_passant_to) = position.en_passant_square {
         let en_passant_idx = en_passant_to.as_usize();
 

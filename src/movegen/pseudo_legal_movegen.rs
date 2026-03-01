@@ -34,28 +34,27 @@ pub fn generate_pseudo_legal_moves_in_place(position: &Position, move_list: &mut
 
         match piece.kind {
             PieceKind::Knight => {
-                piece::gen_jumping_moves(position,move_list, square120, &KNIGHT_DIRECTIONS);
+                piece::gen_jumping_moves(position, move_list, square120, &KNIGHT_DIRECTIONS);
             }
             PieceKind::Bishop => {
-                piece::gen_sliding_moves(position,move_list, square120, &BISHOP_DIRECTIONS);
+                piece::gen_sliding_moves(position, move_list, square120, &BISHOP_DIRECTIONS);
             }
             PieceKind::Pawn => {
-                pawn::gen_pawn_moves(position,move_list, square120);
+                pawn::gen_pawn_moves(position, move_list, square120);
             }
             PieceKind::Rook => {
-                piece::gen_sliding_moves(position,move_list, square120, &ROOK_DIRECTIONS);
+                piece::gen_sliding_moves(position, move_list, square120, &ROOK_DIRECTIONS);
             }
             PieceKind::Queen => {
-                piece::gen_sliding_moves(position,move_list,square120,&KING_QUEEN_DIRECTIONS);
+                piece::gen_sliding_moves(position, move_list, square120, &KING_QUEEN_DIRECTIONS);
             }
             PieceKind::King => {
-                piece::gen_jumping_moves(position,move_list,square120,&KING_QUEEN_DIRECTIONS,);
-                piece::gen_castling_moves(position,move_list, square120);
+                piece::gen_jumping_moves(position, move_list, square120, &KING_QUEEN_DIRECTIONS);
+                piece::gen_castling_moves(position, move_list, square120);
             }
         }
     }
 }
-    
 
 #[cfg(test)]
 mod tests {

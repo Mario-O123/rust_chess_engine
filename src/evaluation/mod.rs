@@ -1,10 +1,10 @@
 //! position evaluation:
 //! this module defines a small abstraction for evaluating a [`Position`]
 //! and provides concrete backends:
-//! 
+//!
 //! -[`classical`] -a hand crafted evaluator
 //! -[`neural`] -a optional neural-network evaluator (enabled with nn-feature)
-//! 
+//!
 //! most callers interact with [`EvalEngine`] which wraps the selected backend behind a single type
 
 use crate::position::Position;

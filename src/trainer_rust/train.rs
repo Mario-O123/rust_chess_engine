@@ -2,9 +2,9 @@
 
 //we train our mlp based on the data sample produced by dataset.rs
 
+use crate::nn_model::mlp_structure::MLP;
 use crate::trainer_rust::config::{MODEL_PATH_4, OPTIMIZER_SAVE_PATH_4};
 use crate::trainer_rust::dataset::{ChessBatch, ChessBatcher, ChessDataset};
-use crate::nn_model::mlp_structure::MLP;
 use burn::data::dataloader::{DataLoader, DataLoaderBuilder};
 use burn::module::AutodiffModule;
 use burn::module::Module;
@@ -13,11 +13,11 @@ use burn::nn::loss::Reduction;
 use burn::optim::Optimizer;
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::{Adam, AdamConfig, GradientsParams};
-use burn::tensor::cast::ToElement;
 use burn::record::FullPrecisionSettings;
 use burn::record::PrettyJsonFileRecorder;
 use burn::record::Recorder;
 use burn::tensor::backend::AutodiffBackend;
+use burn::tensor::cast::ToElement;
 use std::io::{self, Write};
 use std::path::Path;
 use std::sync::Arc;
@@ -35,9 +35,9 @@ pub fn train<B: AutodiffBackend>(
     //initialize optimizer
     let optimizer_config = AdamConfig::new();
     let mut optimizer = optimizer_config.init();
-    
+
     //load optimizer state if it exists
-    //had llm suggest recording the optimizer state as addition to the model and had it generate the code to save it due to me not finding it in the documentation 
+    //had llm suggest recording the optimizer state as addition to the model and had it generate the code to save it due to me not finding it in the documentation
     if Path::new(&OPTIMIZER_SAVE_PATH_4).exists() {
         let device = device; // get backend device
         let recorder: PrettyJsonFileRecorder<FullPrecisionSettings> = PrettyJsonFileRecorder::new();
@@ -113,7 +113,7 @@ pub fn train<B: AutodiffBackend>(
         //calculate the loss and translate it into cp by scaling back and/or using atanh though that could be worse
         let average_epoch_loss = epoch_loss / batch_num as f32;
         let average_valid_loss = valid_loss / valid_batches as f32;
-        
+
         println!(
             "Train - Epoch: {}     Loss: {}    cp: {}",
             epoch,
@@ -146,7 +146,7 @@ pub fn train<B: AutodiffBackend>(
             //save optimizer state
             let optimizer_record = optimizer.to_record();
             recorder
-                .record(optimizer_record, OPTIMIZER_SAVE_PATH_4.into()) 
+                .record(optimizer_record, OPTIMIZER_SAVE_PATH_4.into())
                 .expect("Failed to save optimizer");
             println!("Still Fine!");
         }

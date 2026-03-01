@@ -2,7 +2,7 @@
 //!
 //! This binary speaks a small subset of the UCI protocol via stdin/stdout and
 //! connects it to our `Searcher` implementation.
-//! 
+//!
 //! Evaluation:
 //! - Default: classical evaluation
 //!     (build example: `cargo run --release --bin bot`).

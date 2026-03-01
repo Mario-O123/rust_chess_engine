@@ -1,10 +1,10 @@
 //! Shared terminal-REPL for terminal_proto_classical and terminal_proto_neural
 //! both binaries use the same UI, we use:
-//! 
+//!
 //! -identical inüut syntax (UCI moves, commands)
 //! -identical output format (FEN, search info, scores)
 //! -identical default search budget (depth/time/nodes)
-//! 
+//!
 //! input format: UCI moves (eg. e2e4), promotion (eg g7g8q)
 //! commands:
 //! -help
@@ -14,7 +14,7 @@
 //! -eval (static evaluation of the current position)
 //! -go [depth N| time MS| nodes N] (search noew and play one engine move)
 //! -quit/exit
-//! 
+//!
 //! use of "go ..." command: primarily to help with debugging as comparison tool
 //! it lets us control the search budget deterministically:
 //! -go depth N: comparable depth-limited runs
@@ -23,73 +23,72 @@
 //! by setting and playing with the different combinations for these parameters in search,
 //! we can adjust the limits of our engine and compare classical and neural evaluators to see
 //! if they perform differently with the same settings.
-//! 
+//!
 //! the engine prints "go :"
 //! -bestmove
 //! -score in centipawns as "score(stm)" (side to move) and score(White) (White perspective as default)
 //! -reached depth, nodes, elapsed ms, stop reason
-//! 
+//!
 //!
 
-use std::time::Instant;
 use std::io::{self, Write};
+use std::time::Instant;
 
 use rust_chess_engine::board::mailbox120::{QUEEN_DIRECTIONS, square120_from_file_rank};
-use rust_chess_engine::movegen::{Move, generate_legal_moves_in_place};
-use rust_chess_engine::position::{Cell, Color, PieceKind, Position, Game, GameStatus};
-use rust_chess_engine::search::{SearchLimits, Searcher};
 use rust_chess_engine::evaluation::Evaluator;
-
+use rust_chess_engine::movegen::{Move, generate_legal_moves_in_place};
+use rust_chess_engine::position::{Cell, Color, Game, GameStatus, PieceKind, Position};
+use rust_chess_engine::search::{SearchLimits, Searcher};
 
 pub(crate) fn format_status(status: GameStatus) -> String {
-        match status {
-            GameStatus::Ongoing => "Ongoing".to_string(),
-            GameStatus::Checkmate {winner} => format!("Chechmate (winner: {:?})", winner),
-            GameStatus::Stalemate => "Stalemate".to_string(),
-            GameStatus::DrawRepetition => "Draw by repetition".to_string(),
-            GameStatus::DrawInsufficientMaterial => "Draw (insufficient material".to_string(),
-            GameStatus::Draw50Moves => "Draw (50-move rule)".to_string(),
-        }
+    match status {
+        GameStatus::Ongoing => "Ongoing".to_string(),
+        GameStatus::Checkmate { winner } => format!("Chechmate (winner: {:?})", winner),
+        GameStatus::Stalemate => "Stalemate".to_string(),
+        GameStatus::DrawRepetition => "Draw by repetition".to_string(),
+        GameStatus::DrawInsufficientMaterial => "Draw (insufficient material".to_string(),
+        GameStatus::Draw50Moves => "Draw (50-move rule)".to_string(),
+    }
 }
 
 ///parse tokens after "go ..." and selectively override the defaults
 ///unknown tokens or invalid numeric values are ignored
 pub(crate) fn parse_go_limits(go_tokens: &[&str], default_limits: SearchLimits) -> SearchLimits {
-        let mut effective_limits = default_limits;
-        let mut token_index = 0;
+    let mut effective_limits = default_limits;
+    let mut token_index = 0;
 
-        while token_index < go_tokens.len() {
-            let keyword = go_tokens[token_index].to_ascii_lowercase();
+    while token_index < go_tokens.len() {
+        let keyword = go_tokens[token_index].to_ascii_lowercase();
 
-            match keyword.as_str() {
-                "depth" if token_index + 1 < go_tokens.len() => {
-                    let depth_token = go_tokens[token_index + 1];
-                    if let Ok(parsed_depth) = depth_token.parse::<u8>() {
-                        effective_limits.max_depth = parsed_depth.max(1);
-                    }
-                    token_index += 2;
+        match keyword.as_str() {
+            "depth" if token_index + 1 < go_tokens.len() => {
+                let depth_token = go_tokens[token_index + 1];
+                if let Ok(parsed_depth) = depth_token.parse::<u8>() {
+                    effective_limits.max_depth = parsed_depth.max(1);
                 }
-                "time" if token_index + 1 < go_tokens.len() => {
-                    let time_as_token = go_tokens[token_index + 1];
-                    if let Ok(parsed_time_ms) = time_as_token.parse::<u64>() {
-                        effective_limits.max_time_ms = Some(parsed_time_ms);
-                    }
-                    token_index += 2;
+                token_index += 2;
+            }
+            "time" if token_index + 1 < go_tokens.len() => {
+                let time_as_token = go_tokens[token_index + 1];
+                if let Ok(parsed_time_ms) = time_as_token.parse::<u64>() {
+                    effective_limits.max_time_ms = Some(parsed_time_ms);
                 }
-                "nodes" if token_index + 1 < go_tokens.len() => {
-                    let nodes_token = go_tokens[token_index + 1];
-                    if let Ok(parsed_nodes) = nodes_token.parse::<u64>() {
-                        effective_limits.max_nodes = Some(parsed_nodes);
-                    }
-                    token_index += 2;
+                token_index += 2;
+            }
+            "nodes" if token_index + 1 < go_tokens.len() => {
+                let nodes_token = go_tokens[token_index + 1];
+                if let Ok(parsed_nodes) = nodes_token.parse::<u64>() {
+                    effective_limits.max_nodes = Some(parsed_nodes);
                 }
-                //unknown token:
-                _ => {
-                    token_index += 1;
-                }
+                token_index += 2;
+            }
+            //unknown token:
+            _ => {
+                token_index += 1;
             }
         }
-        effective_limits
+    }
+    effective_limits
 }
 
 pub(crate) fn print_board(pos: &Position) {
@@ -211,16 +210,29 @@ impl<E: Evaluator> EngineCli<E> {
         let stopped_by = if reached_depth >= requested_depth {
             "depth"
         } else if let Some(ms) = requested_time_ms {
-            if elapsed_ms >= ms {"time"} else {"unknown"}
+            if elapsed_ms >= ms { "time" } else { "unknown" }
         } else if let Some(n) = requested_nodes {
-            if result.nodes >= n {"nodes"} else {"unknown"}
+            if result.nodes >= n {
+                "nodes"
+            } else {
+                "unknown"
+            }
         } else {
             "unknown"
         };
 
         if result.best_move.is_null() {
-            println!("Engine({:?}) found no move: score(side_to_move)={}cp | score(white)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={}",
-            root_side_to_move, score_side_to_move_cp, score_white_cp, reached_depth, requested_depth, result.nodes, elapsed_ms, stopped_by);
+            println!(
+                "Engine({:?}) found no move: score(side_to_move)={}cp | score(white)={}cp | depth={}/{} | nodes={} | elapsed={}ms | stop={}",
+                root_side_to_move,
+                score_side_to_move_cp,
+                score_white_cp,
+                reached_depth,
+                requested_depth,
+                result.nodes,
+                elapsed_ms,
+                stopped_by
+            );
             return;
         }
 
@@ -250,7 +262,7 @@ impl<E: Evaluator> EngineCli<E> {
         let parts: Vec<&str> = input.split_whitespace().collect();
         let cmd = parts[0].to_ascii_lowercase();
 
-        match  cmd.as_str() {
+        match cmd.as_str() {
             "quit" | "exit" => return true,
 
             "help" => {
@@ -261,9 +273,13 @@ impl<E: Evaluator> EngineCli<E> {
                 println!("  new                            (new game)");
                 println!("  undo                           (undo 1 ply)");
                 println!("  undo2                          (undo 2 plies)");
-                println!("  eval                           (classical eval, from White perspective)");
+                println!(
+                    "  eval                           (classical eval, from White perspective)"
+                );
                 println!("  go [depth N| time MS| nodes N] (engine plays one move now)");
-                println!("  engine on/off                  (toggle auto-engine reply after your move)");
+                println!(
+                    "  engine on/off                  (toggle auto-engine reply after your move)"
+                );
                 return false;
             }
 
@@ -291,10 +307,12 @@ impl<E: Evaluator> EngineCli<E> {
                         "on" => self.engine_enabled = true,
                         "off" => self.engine_enabled = false,
                         _ => println!("usage: engine on|off"),
-
                     }
                 } else {
-                    println!("engine is {}", if self.engine_enabled {" on "} else { "off" });
+                    println!(
+                        "engine is {}",
+                        if self.engine_enabled { " on " } else { "off" }
+                    );
                 }
                 return false;
             }
@@ -355,10 +373,12 @@ impl<E: Evaluator> EngineCli<E> {
 
 ///start the REPL, called by both binaries
 pub(crate) fn run_repl<E: Evaluator>(eval_for_search: E, eval_view: E) {
-    let  mut cli = EngineCli::new(eval_for_search, eval_view);
+    let mut cli = EngineCli::new(eval_for_search, eval_view);
 
     println!();
-    println!("terminal_proto — commands: help | eval | go [depth N|time MS|nodes N] | undo | undo2 | new | engine on/off | quit");
+    println!(
+        "terminal_proto — commands: help | eval | go [depth N|time MS|nodes N] | undo | undo2 | new | engine on/off | quit"
+    );
     loop {
         cli.print_position();
 
@@ -390,33 +410,3 @@ pub(crate) fn run_repl<E: Evaluator>(eval_for_search: E, eval_view: E) {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

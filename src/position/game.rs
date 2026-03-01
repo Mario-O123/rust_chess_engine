@@ -1,4 +1,4 @@
-//! This modul is responsible for all the gamestatus conditions: 
+//! This modul is responsible for all the gamestatus conditions:
 //! checkmate, draw, stalemate
 
 use crate::board::mailbox120::SQUARE120_TO_SQUARE64;

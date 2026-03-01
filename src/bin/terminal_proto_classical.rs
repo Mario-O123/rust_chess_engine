@@ -3,12 +3,11 @@
 
 mod terminal_common;
 
-use rust_chess_engine::evaluation::{ClassicalEval};
+use rust_chess_engine::evaluation::ClassicalEval;
 
 fn main() {
     terminal_common::run_repl(ClassicalEval::new(), ClassicalEval::new());
 }
-
 
 #[cfg(test)]
 mod terminal_promo_cli_tests {
@@ -62,10 +61,12 @@ mod terminal_promo_cli_tests {
     #[test]
     fn unknown_tokens_and_invalid_values_are_ignored() {
         let limits = parse_go_limits(
-            &["random", "123", "depth", "abc", "time", "xyz", "nodes", "-1"],
+            &[
+                "random", "123", "depth", "abc", "time", "xyz", "nodes", "-1",
+            ],
             default_limits(),
         );
-        
+
         assert_eq!(limits.max_depth, 7);
         assert_eq!(limits.max_time_ms, Some(2000));
         assert_eq!(limits.max_nodes, None);
@@ -80,7 +81,7 @@ mod terminal_promo_handle_line_tests {
     use rust_chess_engine::evaluation::ClassicalEval;
 
     fn fresh_cli() -> EngineCli<ClassicalEval> {
-    EngineCli::new(ClassicalEval::new(), ClassicalEval::new())
+        EngineCli::new(ClassicalEval::new(), ClassicalEval::new())
     }
 
     #[test]
@@ -141,8 +142,3 @@ mod terminal_promo_handle_line_tests {
         assert_eq!(side_after, side_before);
     }
 }
-
-
-
-
-
