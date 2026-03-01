@@ -1,3 +1,24 @@
+# Project description:
+Our initial project goal was to make it possible to play against the engine we created via lichess.
+For this, we planned for our MVP to be a binary, you could simply execute in the terminal and play against the engine, locally.
+First, we reached our MVP goal using our initial classical evaluation of a chess position, then our group agreed to stick with this
+classical version of the evaluator as the standard for our engine and integration to lichess, while also creating a neural-network version
+of the evaluator. As of now our initial goal of being able to play on lichess is possible with both classical and neural evaluators, so while
+the classical evaluation is our project standard, we can compare its results against the neural evaluator for example by making classical play
+against neural on lichess, or with a side-by-side comparison locally in the terminal using our binaries: terminal_proto_classical, terminal_proto_neural.
+Because both binaries share identical commands, output, and search settings, differences in behavior are primarily attributable to the evaluator
+
+Short description of the evaluators:
+The engine supports the named evaluation backends behind a small shared interface, as described in the evaluation/mod
+
+Classical evaluator:
+A handcrafted, deterministic evaluation as the projects baseline
+
+Neural evaluator:
+A neural-network based evaluation loaded from a trained model file and
+uses it to score positions based on learned patterns from data, enabled via the "nn" feature
+
+
 # Playing on Lichess
 This section covers the engine connection via lichess. 
 Here is an step-by-step instruction to connect with lichess.org:
@@ -193,7 +214,7 @@ White: b8c6, determined as illegal move, nothing happens
 ![White: b8c6, illegal](images/classical/moves/illegal_b8c6.jpg)
 
 White: d2d3, engine chooses bestmove
-![White: d2d3, Engine](images/classical/moves\d2d3_then_engine.jpg)
+![White: d2d3, Engine](images/classical/moves/d2d3_then_engine.jpg)
 
 White: b1b3, engine chooses bestmove, White has to type in a move again
 ![White: b1a3, Engine, White prompt](images/classical/moves/b1a3_then_engine_then_white_prompt.jpg)
