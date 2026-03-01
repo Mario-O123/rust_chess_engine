@@ -126,7 +126,7 @@ fn check_sliding_attack(
     is_rook_direction: bool, // true -> ROOK/QUEEN, false -> BISHOP/QUEEN
 ) -> bool {
     let dir_32 = direction as i32;
-    let mut current = (square120 as i32 + dir_32);
+    let mut current = square120 as i32 + dir_32;
 
     loop {
         //while(true) till break or return

@@ -76,6 +76,7 @@ fn player_id(p: &Player) -> Option<&str> {
 #[derive(Debug, Deserialize)]
 struct GameState {
     #[serde(rename = "type", default)]
+    #[allow(dead_code)]
     event_type: Option<String>,
 
     #[serde(default)]

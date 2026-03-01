@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::evaluation::Evaluator;
 use crate::movegen::{
-    Move, generate_legal_captures_in_place, generate_pseudo_legal_moves_in_place, is_in_check,
+    Move, generate_pseudo_legal_moves_in_place, is_in_check,
 };
 use crate::position::{Cell, Color, PieceKind, Position};
 use super::tt::{Bound, TranspositionTable};
